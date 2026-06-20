@@ -1,1 +1,3 @@
-export const VERSION = "0.1.0";
+export { TechnicalAnalystAgent } from "./technical-analyst/agent.js";
+export { FinancialReportAgent } from "./financial-analyst/agent.js";
+export { JudgeAgent } from "./judge/agent.js";
