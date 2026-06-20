@@ -12,14 +12,14 @@ def get_kline(symbol: str, period: str = "daily", count: int = 120,
     code = _normalize_symbol(symbol)
     try:
         df = ak.stock_zh_a_hist(
-            symbol=code, period="daily",
+            symbol=code, period=period,
             start_date="", end_date="",
             adjust=adjust
         )
     except Exception:
         # Fallback: try without market prefix
         df = ak.stock_zh_a_hist(
-            symbol=symbol, period="daily",
+            symbol=symbol, period=period,
             start_date="", end_date="",
             adjust=adjust
         )

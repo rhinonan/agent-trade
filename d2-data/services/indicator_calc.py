@@ -48,7 +48,7 @@ def calc_rsi(closes: list[float], period: int = 14) -> list[Optional[float]]:
         else:
             rs = avg_gain[i] / avg_loss[i]
             rsi[i] = 100.0 - (100.0 / (1.0 + rs))
-    return [round(float(rsi[i]), 2) if i >= period and rsi[i] > 0 else None
+    return [round(float(rsi[i]), 2) if i >= period and rsi[i] >= 0 else None
             for i in range(len(closes))]
 
 
