@@ -6,7 +6,7 @@
 
 **Architecture:** New `packages/server` (NestJS, Socket.IO) provides HTTP API + WebSocket gateway, calling `@agenttrade/core` workflow engine directly. New `packages/web` (Vue 3 + Vite + Pinia) is a SPA that POSTs to start analysis and subscribes to WS events for real-time progress. Both packages are independent from the existing CLI.
 
-**Tech Stack:** Vue 3, Vite, Pinia, socket.io-client (frontend); NestJS 10+, @nestjs/websockets, socket.io (backend)
+**Tech Stack:** Vue 3, Vite, Pinia, Tailwind CSS 4, socket.io-client (frontend); NestJS 10+, @nestjs/websockets, socket.io (backend)
 
 ## Global Constraints
 
@@ -16,6 +16,7 @@
 - Server and CLI are independent — no imports between them
 - Data service must be running separately (`d2-data/` on :9500)
 - API keys via `.env` (dotenv loaded by server at startup)
+- **Frontend styling: Tailwind CSS 4 only. NO scoped `<style>` blocks. NO custom CSS files. All styling via Tailwind utility classes.**
 
 ---
 
@@ -943,9 +944,11 @@ git commit -m "test(server): add integration tests for REST and WebSocket"
     "vue": "^3.5.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-vue": "^5.1.0",
     "@vue/test-utils": "^2.4.0",
     "jsdom": "^25.0.0",
+    "tailwindcss": "^4.0.0",
     "typescript": "^5.5.0",
     "vite": "^6.0.0",
     "vitest": "^2.0.0",
@@ -985,10 +988,11 @@ git commit -m "test(server): add integration tests for REST and WebSocket"
 ```typescript
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "node:path";
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
@@ -1042,6 +1046,7 @@ declare module "*.vue" {
 import { createApp } from "vue";
 import { createPinia } from "pinia";
 import App from "./App.vue";
+import "tailwindcss";
 
 const app = createApp(App);
 app.use(createPinia());
@@ -1486,67 +1491,33 @@ git commit -m "feat(web): add WebSocket composable for real-time analysis events
 
 ```vue
 <template>
-  <header class="app-header">
-    <div class="brand">
-      <h1>AgentTrade</h1>
-      <span class="badge">ALPHA</span>
+  <header class="flex items-baseline gap-4 px-6 py-3.5 bg-[#161b22] border-b border-[#30363d]">
+    <div class="flex items-baseline gap-2">
+      <h1 class="text-xl font-bold text-[#58a6ff]">AgentTrade</h1>
+      <span class="text-[10px] bg-[#1f6feb33] text-[#58a6ff] px-1.5 py-px rounded font-semibold uppercase tracking-wide">ALPHA</span>
     </div>
-    <span class="subtitle">多Agent对抗行情分析</span>
+    <span class="text-sm text-[#8b949e]">多Agent对抗行情分析</span>
   </header>
 </template>
 
 <script setup lang="ts">
 </script>
-
-<style scoped>
-.app-header {
-  padding: 14px 24px;
-  background: #161b22;
-  border-bottom: 1px solid #30363d;
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-}
-.brand {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-.brand h1 {
-  font-size: 20px;
-  font-weight: 700;
-  color: #58a6ff;
-}
-.badge {
-  font-size: 10px;
-  background: #1f6feb33;
-  color: #58a6ff;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.subtitle {
-  font-size: 14px;
-  color: #8b949e;
-}
-</style>
 ```
 
 - [ ] **Step 2: Update `packages/web/src/App.vue`**
 
 ```vue
 <template>
-  <div class="app">
+  <div class="min-h-screen flex flex-col bg-[#0f1117] text-[#e1e4e8] font-sans">
     <AppHeader />
-    <main class="app-main">
-      <aside class="sidebar">
-        <div class="placeholder-panel">
+    <main class="flex-1 flex overflow-hidden">
+      <aside class="w-80 min-w-80 bg-[#161b22] border-r border-[#30363d] p-5 overflow-y-auto">
+        <div class="p-10 text-center text-[#8b949e] border border-dashed border-[#30363d] rounded-lg m-5">
           <p>输入面板将在下一步实现</p>
         </div>
       </aside>
-      <section class="content">
-        <div class="placeholder-flow">
+      <section class="flex-1 flex flex-col overflow-y-auto">
+        <div class="p-10 text-center text-[#8b949e] border border-dashed border-[#30363d] rounded-lg m-5">
           <p>流程可视化将在后续步骤实现</p>
         </div>
       </section>
@@ -1557,46 +1528,6 @@ git commit -m "feat(web): add WebSocket composable for real-time analysis events
 <script setup lang="ts">
 import AppHeader from "./components/AppHeader.vue";
 </script>
-
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #0f1117;
-  color: #e1e4e8;
-}
-.app { min-height: 100vh; display: flex; flex-direction: column; }
-</style>
-
-<style scoped>
-.app-main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-.sidebar {
-  width: 320px;
-  min-width: 320px;
-  background: #161b22;
-  border-right: 1px solid #30363d;
-  padding: 20px;
-  overflow-y: auto;
-}
-.content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-.placeholder-panel, .placeholder-flow {
-  padding: 40px;
-  text-align: center;
-  color: #8b949e;
-  border: 1px dashed #30363d;
-  border-radius: 8px;
-  margin: 20px;
-}
-</style>
 ```
 
 - [ ] **Step 3: Verify build**
@@ -1641,14 +1572,15 @@ git commit -m "feat(web): add app layout with header and two-column shell"
 
 ```vue
 <template>
-  <div class="stock-input">
-    <label>股票代码</label>
+  <div class="mb-4">
+    <label class="block text-[13px] text-[#8b949e] mb-1.5 font-medium">股票代码</label>
     <input
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       placeholder="如 600519"
       type="text"
       maxlength="6"
+      class="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-md text-sm text-[#e1e4e8] outline-none transition-colors focus:border-[#58a6ff] placeholder:text-[#484f58]"
     />
   </div>
 </template>
@@ -1657,32 +1589,20 @@ git commit -m "feat(web): add app layout with header and two-column shell"
 defineProps<{ modelValue: string }>();
 defineEmits<{ (e: "update:modelValue", value: string): void }>();
 </script>
-
-<style scoped>
-.stock-input { margin-bottom: 16px; }
-label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 6px; font-weight: 500; }
-input {
-  width: 100%; padding: 10px 12px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-  color: #e1e4e8; font-size: 14px; outline: none;
-  transition: border-color 0.2s;
-}
-input:focus { border-color: #58a6ff; }
-input::placeholder { color: #484f58; }
-</style>
 ```
 
 - [ ] **Step 2: Create `packages/web/src/components/SectorInput.vue`**
 
 ```vue
 <template>
-  <div class="sector-input">
-    <label>板块名称</label>
+  <div class="mb-4">
+    <label class="block text-[13px] text-[#8b949e] mb-1.5 font-medium">板块名称</label>
     <input
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       placeholder="如 CPO、新能源汽车"
       type="text"
+      class="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-md text-sm text-[#e1e4e8] outline-none transition-colors focus:border-[#58a6ff] placeholder:text-[#484f58]"
     />
   </div>
 </template>
@@ -1691,30 +1611,18 @@ input::placeholder { color: #484f58; }
 defineProps<{ modelValue: string }>();
 defineEmits<{ (e: "update:modelValue", value: string): void }>();
 </script>
-
-<style scoped>
-.sector-input { margin-bottom: 16px; }
-label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 6px; font-weight: 500; }
-input {
-  width: 100%; padding: 10px 12px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-  color: #e1e4e8; font-size: 14px; outline: none;
-  transition: border-color 0.2s;
-}
-input:focus { border-color: #58a6ff; }
-input::placeholder { color: #484f58; }
-</style>
 ```
 
 - [ ] **Step 3: Create `packages/web/src/components/WorkflowSelect.vue`**
 
 ```vue
 <template>
-  <div class="workflow-select">
-    <label>分析工作流</label>
+  <div class="mb-4">
+    <label class="block text-[13px] text-[#8b949e] mb-1.5 font-medium">分析工作流</label>
     <select
       :value="modelValue"
       @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+      class="w-full px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-md text-sm text-[#e1e4e8] outline-none cursor-pointer transition-colors focus:border-[#58a6ff]"
     >
       <option value="bull-bear">🐂🐻 牛熊对抗 (Bull-Bear)</option>
       <option value="quick-scan">⚡ 快速扫描 (Quick Scan)</option>
@@ -1726,30 +1634,19 @@ input::placeholder { color: #484f58; }
 defineProps<{ modelValue: string }>();
 defineEmits<{ (e: "update:modelValue", value: string): void }>();
 </script>
-
-<style scoped>
-.workflow-select { margin-bottom: 16px; }
-label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 6px; font-weight: 500; }
-select {
-  width: 100%; padding: 10px 12px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-  color: #e1e4e8; font-size: 14px; outline: none; cursor: pointer;
-  transition: border-color 0.2s;
-}
-select:focus { border-color: #58a6ff; }
-</style>
 ```
 
 - [ ] **Step 4: Create `packages/web/src/components/ModelSelect.vue`**
 
 ```vue
 <template>
-  <div class="model-select">
-    <label>模型</label>
-    <div class="select-row">
+  <div class="mb-4">
+    <label class="block text-[13px] text-[#8b949e] mb-1.5 font-medium">模型</label>
+    <div class="flex gap-2">
       <select
         :value="provider"
         @change="$emit('update:provider', ($event.target as HTMLSelectElement).value)"
+        class="flex-[0_0_120px] px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-md text-sm text-[#e1e4e8] outline-none cursor-pointer focus:border-[#58a6ff]"
       >
         <option value="deepseek">DeepSeek</option>
         <option value="openai">OpenAI</option>
@@ -1760,7 +1657,7 @@ select:focus { border-color: #58a6ff; }
         @input="$emit('update:model', ($event.target as HTMLInputElement).value)"
         placeholder="自定义模型名称"
         type="text"
-        class="model-input"
+        class="flex-1 px-3 py-2.5 bg-[#0d1117] border border-[#30363d] rounded-md text-sm text-[#e1e4e8] outline-none focus:border-[#58a6ff] placeholder:text-[#484f58] placeholder:text-xs"
       />
     </div>
   </div>
@@ -1773,33 +1670,14 @@ defineEmits<{
   (e: "update:model", value: string): void;
 }>();
 </script>
-
-<style scoped>
-.model-select { margin-bottom: 16px; }
-label { display: block; font-size: 13px; color: #8b949e; margin-bottom: 6px; font-weight: 500; }
-.select-row { display: flex; gap: 8px; }
-select {
-  flex: 0 0 120px; padding: 10px 12px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-  color: #e1e4e8; font-size: 14px; outline: none; cursor: pointer;
-}
-select:focus { border-color: #58a6ff; }
-.model-input {
-  flex: 1; padding: 10px 12px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
-  color: #e1e4e8; font-size: 14px; outline: none;
-}
-.model-input:focus { border-color: #58a6ff; }
-.model-input::placeholder { color: #484f58; font-size: 12px; }
-</style>
 ```
 
 - [ ] **Step 5: Create `packages/web/src/components/InputPanel.vue`**
 
 ```vue
 <template>
-  <div class="input-panel">
-    <h2 class="section-title">分析参数</h2>
+  <div>
+    <h2 class="text-base font-semibold text-[#e1e4e8] mb-5 pb-2.5 border-b border-[#30363d]">分析参数</h2>
 
     <StockInput v-model="stockCode" />
     <SectorInput v-model="sectorName" />
@@ -1809,25 +1687,25 @@ select:focus { border-color: #58a6ff; }
       v-model:model="selectedModel"
     />
 
-    <div v-if="error" class="error-banner">{{ error }}</div>
+    <div v-if="error" class="px-3 py-2.5 mb-3.5 bg-[#49020233] border border-[#f8514966] rounded-md text-[#f85149] text-[13px]">{{ error }}</div>
 
     <button
-      class="analyze-btn"
+      class="w-full p-3 bg-[#238636] border-none rounded-md text-white text-[15px] font-semibold cursor-pointer transition-colors mb-3 hover:enabled:bg-[#2ea043] disabled:bg-[#21262d] disabled:text-[#484f58] disabled:cursor-not-allowed"
       :disabled="isRunning || !canStart"
       @click="startAnalysis"
     >
       {{ isRunning ? "⏳ 分析中..." : "🔍 开始分析" }}
     </button>
 
-    <div v-if="isRunning && steps.length > 0" class="step-summary">
-      <p class="step-info">
+    <div v-if="isRunning && steps.length > 0" class="mt-3">
+      <p class="text-[13px] text-[#8b949e]">
         进度: {{ completedSteps }}/{{ steps.length }} 步骤
       </p>
     </div>
 
     <button
       v-if="status === 'complete' || status === 'error'"
-      class="reset-btn"
+      class="w-full p-2.5 bg-[#21262d] border border-[#30363d] rounded-md text-sm text-[#8b949e] cursor-pointer transition-all hover:bg-[#30363d] hover:text-[#e1e4e8]"
       @click="store.reset()"
     >
       🔄 新分析
@@ -1897,51 +1775,20 @@ async function startAnalysis() {
   }
 }
 </script>
-
-<style scoped>
-.input-panel { }
-.section-title {
-  font-size: 16px; font-weight: 600; margin-bottom: 20px;
-  color: #e1e4e8; padding-bottom: 10px; border-bottom: 1px solid #30363d;
-}
-.analyze-btn {
-  width: 100%; padding: 12px;
-  background: #238636; border: none; border-radius: 6px;
-  color: white; font-size: 15px; font-weight: 600; cursor: pointer;
-  transition: background 0.2s;
-  margin-bottom: 12px;
-}
-.analyze-btn:hover:not(:disabled) { background: #2ea043; }
-.analyze-btn:disabled { background: #21262d; color: #484f58; cursor: not-allowed; }
-.error-banner {
-  padding: 10px 12px; margin-bottom: 14px;
-  background: #49020233; border: 1px solid #f8514966; border-radius: 6px;
-  color: #f85149; font-size: 13px;
-}
-.reset-btn {
-  width: 100%; padding: 10px;
-  background: #21262d; border: 1px solid #30363d; border-radius: 6px;
-  color: #8b949e; font-size: 14px; cursor: pointer;
-  transition: all 0.2s;
-}
-.reset-btn:hover { background: #30363d; color: #e1e4e8; }
-.step-summary { margin-top: 12px; }
-.step-info { font-size: 13px; color: #8b949e; }
-</style>
 ```
 
 - [ ] **Step 6: Update `packages/web/src/App.vue` to use InputPanel**
 
 ```vue
 <template>
-  <div class="app">
+  <div class="min-h-screen flex flex-col bg-[#0f1117] text-[#e1e4e8] font-sans">
     <AppHeader />
-    <main class="app-main">
-      <aside class="sidebar">
+    <main class="flex-1 flex overflow-hidden">
+      <aside class="w-80 min-w-80 bg-[#161b22] border-r border-[#30363d] p-5 overflow-y-auto">
         <InputPanel />
       </aside>
-      <section class="content">
-        <div class="placeholder-flow">
+      <section class="flex-1 flex flex-col overflow-y-auto">
+        <div class="p-10 text-center text-[#8b949e] border border-dashed border-[#30363d] rounded-lg m-5">
           <p>流程可视化将在后续步骤实现</p>
         </div>
       </section>
@@ -1953,42 +1800,6 @@ async function startAnalysis() {
 import AppHeader from "./components/AppHeader.vue";
 import InputPanel from "./components/InputPanel.vue";
 </script>
-
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #0f1117;
-  color: #e1e4e8;
-}
-.app { min-height: 100vh; display: flex; flex-direction: column; }
-</style>
-
-<style scoped>
-.app-main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-.sidebar {
-  width: 320px;
-  min-width: 320px;
-  background: #161b22;
-  border-right: 1px solid #30363d;
-  padding: 20px;
-  overflow-y: auto;
-}
-.content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-.placeholder-flow {
-  padding: 40px; text-align: center; color: #8b949e;
-  border: 1px dashed #30363d; border-radius: 8px; margin: 20px;
-}
-</style>
 ```
 
 - [ ] **Step 7: Verify build**
@@ -2024,28 +1835,35 @@ git commit -m "feat(web): add input panel with stock/sector inputs, workflow and
 
 ```vue
 <template>
-  <div class="step-progress">
-    <h2 class="section-title">分析流程</h2>
-    <div v-if="steps.length === 0" class="empty-state">
+  <div>
+    <h2 class="text-sm font-semibold text-[#e1e4e8] mb-4 pb-2 border-b border-[#30363d]">分析流程</h2>
+    <div v-if="steps.length === 0" class="text-[#484f58] text-[13px] text-center py-5">
       等待分析开始...
     </div>
-    <div v-else class="step-list">
+    <div v-else class="flex flex-wrap items-start gap-1">
       <div
         v-for="(step, index) in steps"
         :key="step.id"
-        class="step-node"
-        :class="`step--${step.status}`"
+        class="flex items-center"
       >
-        <div class="step-connector" v-if="index < steps.length - 1">
-          <span class="connector-line"></span>
-          <span class="connector-arrow">→</span>
+        <div v-if="index > 0" class="flex items-center mx-1">
+          <span class="w-4 h-0.5 bg-[#30363d]"></span>
+          <span class="text-[#484f58] text-xs ml-0.5">→</span>
         </div>
-        <div class="step-card">
-          <span class="step-status-icon">{{ statusIcon(step.status) }}</span>
-          <div class="step-info">
-            <span class="step-id">{{ step.id }}</span>
-            <span class="step-type">{{ step.type }}</span>
-            <span v-if="step.agentIds.length > 0" class="step-agents">
+        <div
+          class="flex items-start gap-2 px-3.5 py-2.5 rounded-lg bg-[#0d1117] border min-w-[140px] transition-all duration-300"
+          :class="{
+            'border-[#58a6ff] shadow-[0_0_8px_#58a6ff33] animate-pulse': step.status === 'running',
+            'border-[#238636]': step.status === 'complete',
+            'border-[#f85149]': step.status === 'error',
+            'border-[#30363d]': step.status === 'pending',
+          }"
+        >
+          <span class="text-base">{{ statusIcon(step.status) }}</span>
+          <div class="flex flex-col gap-0.5">
+            <span class="text-[13px] font-semibold text-[#e1e4e8]">{{ step.id }}</span>
+            <span class="text-[11px] text-[#8b949e]">{{ step.type }}</span>
+            <span v-if="step.agentIds.length > 0" class="text-[11px] text-[#58a6ff]">
               {{ step.agentIds.join(", ") }}
             </span>
           </div>
@@ -2069,65 +1887,39 @@ function statusIcon(status: string): string {
   }
 }
 </script>
-
-<style scoped>
-.section-title {
-  font-size: 14px; font-weight: 600; color: #e1e4e8;
-  margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #30363d;
-}
-.empty-state { color: #484f58; font-size: 13px; text-align: center; padding: 20px; }
-.step-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 4px; }
-.step-node { display: flex; align-items: center; }
-.step-connector { display: flex; align-items: center; margin: 0 4px; }
-.connector-line { width: 16px; height: 2px; background: #30363d; }
-.connector-arrow { color: #484f58; font-size: 12px; margin-left: 2px; }
-.step-card {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 10px 14px; border-radius: 8px;
-  background: #0d1117; border: 1px solid #30363d;
-  min-width: 140px; transition: all 0.3s;
-}
-.step--running .step-card {
-  border-color: #58a6ff;
-  box-shadow: 0 0 8px #58a6ff33;
-  animation: pulse 1.5s ease-in-out infinite;
-}
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 4px #58a6ff22; }
-  50% { box-shadow: 0 0 12px #58a6ff55; }
-}
-.step--complete .step-card { border-color: #238636; }
-.step--error .step-card { border-color: #f85149; }
-.step-status-icon { font-size: 16px; }
-.step-info { display: flex; flex-direction: column; gap: 2px; }
-.step-id { font-size: 13px; font-weight: 600; color: #e1e4e8; }
-.step-type { font-size: 11px; color: #8b949e; }
-.step-agents { font-size: 11px; color: #58a6ff; }
-</style>
 ```
 
 - [ ] **Step 2: Create `packages/web/src/components/LiveLog.vue`**
 
 ```vue
 <template>
-  <div class="live-log">
-    <div class="log-header">
-      <h2 class="section-title">实时输出</h2>
-      <span v-if="isRunning" class="running-badge">● 运行中</span>
+  <div>
+    <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#30363d]">
+      <h2 class="text-sm font-semibold text-[#e1e4e8]">实时输出</h2>
+      <span v-if="isRunning" class="text-xs text-[#238636] animate-pulse">● 运行中</span>
     </div>
-    <div class="log-container" ref="logContainer">
-      <div v-if="logs.length === 0" class="empty-state">
+    <div
+      ref="logContainer"
+      class="h-60 overflow-y-auto p-3 bg-[#0d1117] border border-[#30363d] rounded-lg font-mono text-xs leading-relaxed"
+    >
+      <div v-if="logs.length === 0" class="text-[#484f58] text-center py-5">
         等待输出...
       </div>
       <div
         v-for="(entry, index) in logs"
         :key="index"
-        class="log-entry"
-        :class="`log--${entry.sentiment ?? 'neutral'}`"
+        class="flex gap-2 py-0.5"
       >
-        <span class="log-time">{{ formatTime(entry.time) }}</span>
-        <span class="log-agent">[{{ entry.agent }}]</span>
-        <span class="log-message">{{ entry.message }}</span>
+        <span class="text-[#484f58] whitespace-nowrap">{{ formatTime(entry.time) }}</span>
+        <span class="text-[#58a6ff] whitespace-nowrap font-semibold">[{{ entry.agent }}]</span>
+        <span
+          class="break-all"
+          :class="{
+            'text-[#3fb950]': entry.sentiment === 'bullish',
+            'text-[#f85149]': entry.sentiment === 'bearish',
+            'text-[#c9d1d9]': !entry.sentiment || entry.sentiment === 'neutral',
+          }"
+        >{{ entry.message }}</span>
       </div>
     </div>
   </div>
@@ -2158,36 +1950,13 @@ function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("zh-CN", { hour12: false });
 }
 </script>
-
-<style scoped>
-.log-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #30363d;
-}
-.section-title { font-size: 14px; font-weight: 600; color: #e1e4e8; }
-.running-badge { font-size: 12px; color: #238636; animation: blink 1s ease-in-out infinite; }
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-.log-container {
-  height: 240px; overflow-y: auto; padding: 12px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
-  font-family: "SF Mono", "Cascadia Code", monospace; font-size: 12px;
-  line-height: 1.6;
-}
-.empty-state { color: #484f58; text-align: center; padding: 20px; }
-.log-entry { display: flex; gap: 8px; padding: 2px 0; }
-.log-time { color: #484f58; white-space: nowrap; }
-.log-agent { color: #58a6ff; white-space: nowrap; font-weight: 600; }
-.log-message { color: #c9d1d9; word-break: break-all; }
-.log--bullish .log-message { color: #3fb950; }
-.log--bearish .log-message { color: #f85149; }
-</style>
 ```
 
 - [ ] **Step 3: Create `packages/web/src/components/FlowView.vue`**
 
 ```vue
 <template>
-  <div class="flow-view">
+  <div class="p-5 flex flex-col gap-6 flex-1">
     <StepProgress :steps="store.steps" />
     <LiveLog :logs="store.logs" :is-running="store.isRunning" />
   </div>
@@ -2200,29 +1969,19 @@ import LiveLog from "./LiveLog.vue";
 
 const store = useAnalysisStore();
 </script>
-
-<style scoped>
-.flow-view {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  flex: 1;
-}
-</style>
 ```
 
 - [ ] **Step 4: Update `packages/web/src/App.vue`**
 
 ```vue
 <template>
-  <div class="app">
+  <div class="min-h-screen flex flex-col bg-[#0f1117] text-[#e1e4e8] font-sans">
     <AppHeader />
-    <main class="app-main">
-      <aside class="sidebar">
+    <main class="flex-1 flex overflow-hidden">
+      <aside class="w-80 min-w-80 bg-[#161b22] border-r border-[#30363d] p-5 overflow-y-auto">
         <InputPanel />
       </aside>
-      <section class="content" :class="{ 'content--complete': store.status === 'complete' }">
+      <section class="flex-1 flex flex-col overflow-y-auto">
         <FlowView />
         <ReportView v-if="store.status === 'complete'" />
       </section>
@@ -2239,41 +1998,6 @@ import { useAnalysisStore } from "@/stores/analysis";
 
 const store = useAnalysisStore();
 </script>
-
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #0f1117;
-  color: #e1e4e8;
-}
-.app { min-height: 100vh; display: flex; flex-direction: column; }
-</style>
-
-<style scoped>
-.app-main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
-.sidebar {
-  width: 320px;
-  min-width: 320px;
-  background: #161b22;
-  border-right: 1px solid #30363d;
-  padding: 20px;
-  overflow-y: auto;
-}
-.content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-.content--complete {
-  /* Allow report to take full width below flow */
-}
-</style>
 ```
 
 - [ ] **Step 5: Verify build**
@@ -2286,19 +2010,13 @@ Expected: fails — `ReportView` not yet created. Create a stub `packages/web/sr
 
 ```vue
 <template>
-  <div class="report-view">
-    <p>报告将在分析完成后展示</p>
+  <div class="p-5 border-t border-[#30363d]">
+    <p class="text-[#8b949e]">报告将在分析完成后展示</p>
   </div>
 </template>
 
 <script setup lang="ts">
 </script>
-
-<style scoped>
-.report-view {
-  padding: 20px; border-top: 1px solid #30363d;
-}
-</style>
 ```
 
 Then build:
@@ -2334,29 +2052,29 @@ git commit -m "feat(web): add flow visualization with step progress and live log
 
 ```vue
 <template>
-  <div class="sentiment-chart">
-    <h3>多空分布</h3>
-    <div class="chart-bars">
-      <div class="bar-group">
-        <span class="bar-label">🟢 看多</span>
-        <div class="bar-track">
-          <div class="bar bar--bullish" :style="{ width: bullPct + '%' }"></div>
+  <div class="mb-6">
+    <h3 class="text-[15px] font-semibold text-[#e1e4e8] mb-3.5">多空分布</h3>
+    <div class="flex flex-col gap-2.5">
+      <div class="flex items-center gap-2.5">
+        <span class="w-[60px] text-[13px]">🟢 看多</span>
+        <div class="flex-1 h-5 bg-[#21262d] rounded overflow-hidden">
+          <div class="h-full rounded bg-[#238636] transition-[width] duration-600" :style="{ width: bullPct + '%' }"></div>
         </div>
-        <span class="bar-count">{{ sentiments.bullish }}</span>
+        <span class="w-[30px] text-sm font-semibold text-right">{{ sentiments.bullish }}</span>
       </div>
-      <div class="bar-group">
-        <span class="bar-label">🔴 看空</span>
-        <div class="bar-track">
-          <div class="bar bar--bearish" :style="{ width: bearPct + '%' }"></div>
+      <div class="flex items-center gap-2.5">
+        <span class="w-[60px] text-[13px]">🔴 看空</span>
+        <div class="flex-1 h-5 bg-[#21262d] rounded overflow-hidden">
+          <div class="h-full rounded bg-[#da3633] transition-[width] duration-600" :style="{ width: bearPct + '%' }"></div>
         </div>
-        <span class="bar-count">{{ sentiments.bearish }}</span>
+        <span class="w-[30px] text-sm font-semibold text-right">{{ sentiments.bearish }}</span>
       </div>
-      <div class="bar-group">
-        <span class="bar-label">⚪ 中性</span>
-        <div class="bar-track">
-          <div class="bar bar--neutral" :style="{ width: neutralPct + '%' }"></div>
+      <div class="flex items-center gap-2.5">
+        <span class="w-[60px] text-[13px]">⚪ 中性</span>
+        <div class="flex-1 h-5 bg-[#21262d] rounded overflow-hidden">
+          <div class="h-full rounded bg-[#484f58] transition-[width] duration-600" :style="{ width: neutralPct + '%' }"></div>
         </div>
-        <span class="bar-count">{{ sentiments.neutral }}</span>
+        <span class="w-[30px] text-sm font-semibold text-right">{{ sentiments.neutral }}</span>
       </div>
     </div>
   </div>
@@ -2375,36 +2093,31 @@ const bullPct = computed(() => Math.round((props.sentiments.bullish / total.valu
 const bearPct = computed(() => Math.round((props.sentiments.bearish / total.value) * 100));
 const neutralPct = computed(() => Math.round((props.sentiments.neutral / total.value) * 100));
 </script>
-
-<style scoped>
-.sentiment-chart { margin-bottom: 24px; }
-h3 { font-size: 15px; font-weight: 600; color: #e1e4e8; margin-bottom: 14px; }
-.chart-bars { display: flex; flex-direction: column; gap: 10px; }
-.bar-group { display: flex; align-items: center; gap: 10px; }
-.bar-label { width: 60px; font-size: 13px; }
-.bar-track { flex: 1; height: 20px; background: #21262d; border-radius: 4px; overflow: hidden; }
-.bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
-.bar--bullish { background: #238636; }
-.bar--bearish { background: #da3633; }
-.bar--neutral { background: #484f58; }
-.bar-count { width: 30px; font-size: 14px; font-weight: 600; text-align: right; }
-</style>
 ```
 
 - [ ] **Step 2: Create `packages/web/src/components/FindingList.vue`**
 
 ```vue
 <template>
-  <div class="finding-list">
-    <h3>各方观点</h3>
-    <div v-for="(f, i) in findings" :key="i" class="finding-card" :class="`finding--${f.sentiment}`">
-      <div class="finding-header">
-        <span class="finding-agent">{{ f.agent }}</span>
-        <span class="finding-confidence">{{ Math.round(f.confidence * 100) }}% 置信度</span>
+  <div class="mb-6">
+    <h3 class="text-[15px] font-semibold text-[#e1e4e8] mb-3.5">各方观点</h3>
+    <div
+      v-for="(f, i) in findings"
+      :key="i"
+      class="p-3.5 mb-2.5 bg-[#0d1117] border border-[#30363d] rounded-lg"
+      :class="{
+        'border-l-[3px] border-l-[#238636]': f.sentiment === 'bullish',
+        'border-l-[3px] border-l-[#da3633]': f.sentiment === 'bearish',
+        'border-l-[3px] border-l-[#8b949e]': f.sentiment === 'neutral',
+      }"
+    >
+      <div class="flex justify-between mb-2">
+        <span class="text-[13px] font-semibold text-[#58a6ff]">{{ f.agent }}</span>
+        <span class="text-xs text-[#8b949e]">{{ Math.round(f.confidence * 100) }}% 置信度</span>
       </div>
-      <p class="finding-conclusion">{{ f.conclusion }}</p>
-      <ul v-if="f.reasoning && f.reasoning.length > 0" class="finding-reasoning">
-        <li v-for="(r, j) in f.reasoning" :key="j">{{ r }}</li>
+      <p class="text-sm text-[#e1e4e8] leading-relaxed mb-1.5">{{ f.conclusion }}</p>
+      <ul v-if="f.reasoning && f.reasoning.length > 0" class="mt-2 pl-[18px]">
+        <li v-for="(r, j) in f.reasoning" :key="j" class="text-[13px] text-[#8b949e] mb-0.5">{{ r }}</li>
       </ul>
     </div>
   </div>
@@ -2415,33 +2128,15 @@ import type { Finding } from "@/stores/analysis";
 
 defineProps<{ findings: Finding[] }>();
 </script>
-
-<style scoped>
-.finding-list { margin-bottom: 24px; }
-h3 { font-size: 15px; font-weight: 600; color: #e1e4e8; margin-bottom: 14px; }
-.finding-card {
-  padding: 14px; margin-bottom: 10px;
-  background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
-}
-.finding--bullish { border-left: 3px solid #238636; }
-.finding--bearish { border-left: 3px solid #da3633; }
-.finding--neutral { border-left: 3px solid #8b949e; }
-.finding-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
-.finding-agent { font-size: 13px; font-weight: 600; color: #58a6ff; }
-.finding-confidence { font-size: 12px; color: #8b949e; }
-.finding-conclusion { font-size: 14px; color: #e1e4e8; line-height: 1.5; margin-bottom: 6px; }
-.finding-reasoning { margin-top: 8px; padding-left: 18px; }
-.finding-reasoning li { font-size: 13px; color: #8b949e; margin-bottom: 3px; }
-</style>
 ```
 
 - [ ] **Step 3: Create `packages/web/src/components/ConclusionCard.vue`**
 
 ```vue
 <template>
-  <div class="conclusion-card">
-    <h3>📋 综合研判</h3>
-    <div class="conclusion-body">
+  <div class="p-[18px] bg-[#0d1117] border border-[#30363d] border-t-[3px] border-t-[#58a6ff] rounded-lg">
+    <h3 class="text-[15px] font-semibold text-[#58a6ff] mb-3">📋 综合研判</h3>
+    <div class="text-sm text-[#e1e4e8] leading-relaxed whitespace-pre-wrap">
       <p>{{ conclusion }}</p>
     </div>
   </div>
@@ -2450,25 +2145,15 @@ h3 { font-size: 15px; font-weight: 600; color: #e1e4e8; margin-bottom: 14px; }
 <script setup lang="ts">
 defineProps<{ conclusion: string }>();
 </script>
-
-<style scoped>
-.conclusion-card {
-  padding: 18px; background: #0d1117;
-  border: 1px solid #30363d; border-radius: 8px;
-  border-top: 3px solid #58a6ff;
-}
-h3 { font-size: 15px; font-weight: 600; color: #58a6ff; margin-bottom: 12px; }
-.conclusion-body { font-size: 14px; color: #e1e4e8; line-height: 1.7; white-space: pre-wrap; }
-</style>
 ```
 
 - [ ] **Step 4: Replace `packages/web/src/components/ReportView.vue`**
 
 ```vue
 <template>
-  <div v-if="store.report" class="report-view">
-    <h2 class="report-title">📊 分析报告 — {{ store.report.target.name ?? store.report.target.code }}</h2>
-    <div class="report-grid">
+  <div v-if="store.report" class="px-5 py-6 border-t border-[#30363d]">
+    <h2 class="text-lg font-semibold text-[#e1e4e8] mb-5">📊 分析报告 — {{ store.report.target.name ?? store.report.target.code }}</h2>
+    <div class="grid grid-cols-[280px_1fr] gap-6 max-[900px]:grid-cols-1">
       <SentimentChart :sentiments="store.report.sentiments" />
       <FindingList :findings="store.report.findings" />
     </div>
@@ -2477,8 +2162,8 @@ h3 { font-size: 15px; font-weight: 600; color: #58a6ff; margin-bottom: 12px; }
       :conclusion="store.report.conclusion"
     />
   </div>
-  <div v-else class="report-view">
-    <p class="empty-report">等待分析完成...</p>
+  <div v-else class="px-5 py-6 border-t border-[#30363d]">
+    <p class="text-sm text-[#8b949e]">等待分析完成...</p>
   </div>
 </template>
 
@@ -2490,22 +2175,6 @@ import ConclusionCard from "./ConclusionCard.vue";
 
 const store = useAnalysisStore();
 </script>
-
-<style scoped>
-.report-view {
-  padding: 24px 20px; border-top: 1px solid #30363d;
-}
-.report-title {
-  font-size: 18px; font-weight: 600; color: #e1e4e8; margin-bottom: 20px;
-}
-.report-grid {
-  display: grid; grid-template-columns: 280px 1fr; gap: 24px;
-}
-.empty-report { color: #8b949e; font-size: 14px; }
-@media (max-width: 900px) {
-  .report-grid { grid-template-columns: 1fr; }
-}
-</style>
 ```
 
 - [ ] **Step 5: Verify build**
