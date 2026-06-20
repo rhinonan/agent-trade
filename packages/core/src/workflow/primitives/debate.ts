@@ -21,15 +21,13 @@ export async function executeDebate(
   context: ExecutionContext,
   options: AnalyzeOptions = {},
 ): Promise<ExecutionContext> {
-  const agentIds = (step.agent as { id: string }[])?.map(a => a.id) ?? [];
-  if (agentIds.length < 2) throw new Error("Debate requires at least 2 agents");
+  const match = step.match ?? (Array.isArray(step.agent) ? { capability: undefined } : step.agent);
+  const matchedAgents = registry.match(match as any, step.count ?? { min: 2 });
+  if (matchedAgents.length < 2) throw new Error("Debate requires at least 2 agents");
+  const agentIds = matchedAgents.map(a => a.id);
+  const agents = matchedAgents;
 
   const maxRounds = step.maxRounds ?? 2;
-  const agents = agentIds.map(id => {
-    const a = registry.get(id);
-    if (!a) throw new Error(`Agent "${id}" not found for debate`);
-    return a;
-  });
 
   const topic = (step.prompt ?? "对 {target} 进行辩论分析")
     .replace("{target}", context.target.name ?? context.target.code);
@@ -38,12 +36,18 @@ export async function executeDebate(
   const llm = createLLM(options);
 
   for (let round = 1; round <= maxRounds; round++) {
+    const priorRoundsText = currentCtx.debateRounds
+      .flatMap(r => r.entries)
+      .map(e => `[${e.agent}]: ${e.argument}`)
+      .join("\n");
+
     const roundEntries: DebateRound["entries"] = [];
 
     for (const agent of agents) {
-      const history = roundEntries
+      const currentRoundText = roundEntries
         .map(e => `[${e.agent}]: ${e.argument}`)
         .join("\n");
+      const history = [priorRoundsText, currentRoundText].filter(Boolean).join("\n");
 
       const messages: BaseMessage[] = [
         new SystemMessage(`你正在参与一场辩论。你是${agent.name}（立场: ${agent.personality.stance}）。
