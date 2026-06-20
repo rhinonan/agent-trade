@@ -151,15 +151,15 @@ agenttrade/
 
 ## 开源协议
 
-核心框架（`packages/core`, `packages/agents`, `packages/data-client`, `packages/cli`）采用 Apache 2.0 协议。
+核心框架（`packages/core`, `packages/agents`, `packages/data-client`, `packages/cli`）采用 **GNU AGPL 3.0** 协议。
 
-高级功能、专有 Agent 和云端服务为商业许可。
+这意味着：
+- 你可以自由使用、修改和分发代码
+- **如果你将修改后的代码作为网络服务提供给他人使用（SaaS），你必须公开你的修改**
+- 这保护了开源生态——社区贡献回馈社区，同时商业使用需要单独授权
 
-## 参考项目
-
-- [ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) — 投资大师思想提炼成 Agent
-- [Vibe-Trading](https://github.com/langchain-ai/vibe-trading) — 多 Agent 对抗流程
+想闭源商业化部署？联系我们获取商业许可。
 
 ## License
 
-[Apache 2.0](LICENSE)
+[GNU AGPL 3.0](LICENSE)
