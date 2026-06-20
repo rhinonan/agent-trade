@@ -2,18 +2,9 @@ import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/m
 import type { AgentRegistry } from "../../agent/registry.js";
 import type { ExecutionContext, WorkflowStep, DebateRound } from "../types.js";
 import { addFinding, addDebateRound } from "../context.js";
-import type { AnalyzeOptions } from "./analyze.js";
-import { ChatAnthropic } from "@langchain/anthropic";
-import { ChatOpenAI } from "@langchain/openai";
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { createLLM, parseLLMJson } from "./llm.js";
+import type { AnalyzeOptions } from "./llm.js";
 import type { Analysis } from "../../agent/types.js";
-
-function createLLM(options: AnalyzeOptions = {}): BaseChatModel {
-  if (options.llm) return options.llm;
-  return options.provider === "openai"
-    ? new ChatOpenAI({ modelName: options.modelName ?? "gpt-4o" })
-    : new ChatAnthropic({ modelName: options.modelName ?? "claude-sonnet-4-6" });
-}
 
 export async function executeDebate(
   step: WorkflowStep,
@@ -66,16 +57,14 @@ ${round > 1 ? "请回应上一轮对手的观点，补充论据或针对性地�
       const response = await llm.invoke(messages);
       const text = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
 
-      const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1].trim() : text.trim();
       let analysis: Analysis;
       try {
-        const parsed = JSON.parse(jsonStr);
+        const parsed = parseLLMJson(text) as Record<string, unknown>;
         analysis = {
-          conclusion: parsed.conclusion ?? text.slice(0, 100),
-          confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0.5)),
-          sentiment: parsed.sentiment ?? "neutral",
-          reasoning: Array.isArray(parsed.reasoning) ? parsed.reasoning : [parsed.reasoning ?? ""],
+          conclusion: (parsed.conclusion as string) ?? text.slice(0, 100),
+          confidence: Math.max(0, Math.min(1, (parsed.confidence as number) ?? 0.5)),
+          sentiment: (parsed.sentiment as string) ?? "neutral",
+          reasoning: Array.isArray(parsed.reasoning) ? (parsed.reasoning as string[]) : [(parsed.reasoning as string) ?? ""],
           rawOutput: text,
         };
       } catch {

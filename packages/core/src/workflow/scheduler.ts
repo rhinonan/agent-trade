@@ -1,6 +1,7 @@
 import type { WorkflowDAG, WorkflowStep, ExecutionContext } from "./types.js";
 import type { AgentRegistry } from "../agent/registry.js";
-import { executeAnalyze, type AnalyzeOptions } from "./primitives/analyze.js";
+import type { AnalyzeOptions } from "./primitives/llm.js";
+import { executeAnalyze } from "./primitives/analyze.js";
 import { executePanel } from "./primitives/panel.js";
 import { executeCritique } from "./primitives/critique.js";
 import { executeDebate } from "./primitives/debate.js";
@@ -84,8 +85,22 @@ export class WorkflowScheduler {
     context: ExecutionContext,
     options: AnalyzeOptions,
   ): Promise<ExecutionContext> {
-    // Simplified: only handle analyze sub-steps for now (used by parallel/sequential)
-    return executeAnalyze(step, this.registry, context, options);
+    switch (step.type) {
+      case "analyze":
+        return executeAnalyze(step, this.registry, context, options);
+      case "panel":
+        return executePanel(step, this.registry, context, options);
+      case "critique":
+        return executeCritique(step, this.registry, context, options);
+      case "debate":
+        return executeDebate(step, this.registry, context, options);
+      case "vote":
+        return executeVote(step, this.registry, context, options);
+      case "synthesize":
+        return executeSynthesize(step, this.registry, context, options);
+      default:
+        throw new Error(`Unknown sub-step type: ${step.type}`);
+    }
   }
 }
 

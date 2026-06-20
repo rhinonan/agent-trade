@@ -32,8 +32,9 @@ export {
   getLatestFinding,
 } from "./workflow/context.js";
 
-export { executeAnalyze, setDefaultLLMProvider } from "./workflow/primitives/analyze.js";
-export type { AnalyzeOptions, LLMProvider } from "./workflow/primitives/analyze.js";
+export { executeAnalyze } from "./workflow/primitives/analyze.js";
+export { setDefaultLLMProvider, createLLM, parseLLMJson } from "./workflow/primitives/llm.js";
+export type { AnalyzeOptions, LLMProvider } from "./workflow/primitives/llm.js";
 
 export { executePanel } from "./workflow/primitives/panel.js";
 export { executeCritique } from "./workflow/primitives/critique.js";

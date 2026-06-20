@@ -1,34 +1,10 @@
-import { ChatAnthropic } from "@langchain/anthropic";
-import { ChatOpenAI } from "@langchain/openai";
-import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { AgentRegistry } from "../../agent/registry.js";
 import type { ExecutionContext, WorkflowStep } from "../types.js";
 import type { Analysis } from "../../agent/types.js";
 import { addFinding } from "../context.js";
-
-export type LLMProvider = "anthropic" | "openai";
-
-export interface AnalyzeOptions {
-  provider?: LLMProvider;
-  modelName?: string;
-  llm?: BaseChatModel; // override — used in tests
-}
-
-let _defaultProvider: LLMProvider = "anthropic";
-
-export function setDefaultLLMProvider(provider: LLMProvider): void {
-  _defaultProvider = provider;
-}
-
-function createLLM(options: AnalyzeOptions = {}): BaseChatModel {
-  if (options.llm) return options.llm;
-  const provider = options.provider ?? _defaultProvider;
-  if (provider === "openai") {
-    return new ChatOpenAI({ modelName: options.modelName ?? "gpt-4o" });
-  }
-  return new ChatAnthropic({ modelName: options.modelName ?? "claude-sonnet-4-6" });
-}
+import { createLLM, parseLLMJson } from "./llm.js";
+import type { AnalyzeOptions } from "./llm.js";
 
 export async function executeAnalyze(
   step: WorkflowStep,
@@ -83,17 +59,14 @@ function formatPromptWithContext(prompt: string, context: ExecutionContext): str
   return parts.join("\n");
 }
 
-function parseAnalysis(text: string, agentId: string): Analysis {
+function parseAnalysis(text: string, _agentId: string): Analysis {
   try {
-    // Try JSON extraction from markdown code blocks
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonStr = jsonMatch ? jsonMatch[1].trim() : text.trim();
-    const parsed = JSON.parse(jsonStr);
+    const parsed = parseLLMJson(text) as Record<string, unknown>;
     return {
-      conclusion: parsed.conclusion ?? "无法解析",
-      confidence: Math.max(0, Math.min(1, parsed.confidence ?? 0.5)),
-      sentiment: parsed.sentiment ?? "neutral",
-      reasoning: Array.isArray(parsed.reasoning) ? parsed.reasoning : [parsed.reasoning ?? ""],
+      conclusion: (parsed.conclusion as string) ?? "无法解析",
+      confidence: Math.max(0, Math.min(1, (parsed.confidence as number) ?? 0.5)),
+      sentiment: (parsed.sentiment as string) ?? "neutral",
+      reasoning: Array.isArray(parsed.reasoning) ? (parsed.reasoning as string[]) : [(parsed.reasoning as string) ?? ""],
       rawOutput: text,
     };
   } catch {

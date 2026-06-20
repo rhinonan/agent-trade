@@ -1,6 +1,7 @@
 import type { AgentRegistry } from "../../agent/registry.js";
 import type { ExecutionContext, WorkflowStep } from "../types.js";
-import { executeAnalyze, type AnalyzeOptions } from "./analyze.js";
+import { executeAnalyze } from "./analyze.js";
+import type { AnalyzeOptions } from "./llm.js";
 
 export async function executePanel(
   step: WorkflowStep,
