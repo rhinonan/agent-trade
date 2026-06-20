@@ -40,3 +40,17 @@ export { executeCritique } from "./workflow/primitives/critique.js";
 export { executeDebate } from "./workflow/primitives/debate.js";
 export { executeVote } from "./workflow/primitives/vote.js";
 export { executeSynthesize } from "./workflow/primitives/synthesize.js";
+
+export {
+  defineWorkflow,
+  analyze,
+  critique,
+  parallel,
+  sequential,
+  panel,
+  synthesize,
+  vote,
+  debate,
+} from "./workflow/builder.js";
+export { WorkflowScheduler } from "./workflow/scheduler.js";
+export type { SchedulerEvents } from "./workflow/scheduler.js";
