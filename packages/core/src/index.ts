@@ -31,3 +31,6 @@ export {
   getStepFindings,
   getLatestFinding,
 } from "./workflow/context.js";
+
+export { executeAnalyze, setDefaultLLMProvider } from "./workflow/primitives/analyze.js";
+export type { AnalyzeOptions, LLMProvider } from "./workflow/primitives/analyze.js";
