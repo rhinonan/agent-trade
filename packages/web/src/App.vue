@@ -6,9 +6,8 @@
         <InputPanel />
       </aside>
       <section class="flex-1 flex flex-col overflow-y-auto">
-        <div class="p-10 text-center text-[#8b949e] border border-dashed border-[#30363d] rounded-lg m-5">
-          <p>流程可视化将在后续步骤实现</p>
-        </div>
+        <FlowView />
+        <ReportView v-if="store.status === 'complete'" />
       </section>
     </main>
   </div>
@@ -17,6 +16,11 @@
 <script setup lang="ts">
 import AppHeader from "./components/AppHeader.vue";
 import InputPanel from "./components/InputPanel.vue";
+import FlowView from "./components/FlowView.vue";
+import ReportView from "./components/ReportView.vue";
+import { useAnalysisStore } from "@/stores/analysis";
+
+const store = useAnalysisStore();
 </script>
 
 <style>
