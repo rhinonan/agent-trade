@@ -34,3 +34,6 @@ export {
 
 export { executeAnalyze, setDefaultLLMProvider } from "./workflow/primitives/analyze.js";
 export type { AnalyzeOptions, LLMProvider } from "./workflow/primitives/analyze.js";
+
+export { executePanel } from "./workflow/primitives/panel.js";
+export { executeCritique } from "./workflow/primitives/critique.js";
