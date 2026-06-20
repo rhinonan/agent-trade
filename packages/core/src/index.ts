@@ -22,3 +22,12 @@ export { AgentRegistry } from "./agent/registry.js";
 export { loadAgents, registerInstances } from "./agent/loader.js";
 export { HumanAgent, setHumanInputHandler } from "./agent/human-agent.js";
 export type { HumanInputRequest, HumanInputHandler } from "./agent/human-agent.js";
+
+export {
+  createContext,
+  addFinding,
+  addDebateRound,
+  getAgentFindings,
+  getStepFindings,
+  getLatestFinding,
+} from "./workflow/context.js";
