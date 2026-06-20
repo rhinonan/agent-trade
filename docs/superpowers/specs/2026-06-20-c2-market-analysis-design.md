@@ -1,4 +1,4 @@
-# C2 — 多Agent对抗行情分析系统 设计文档
+# AgentTrade — 多Agent对抗行情分析系统 设计文档
 
 **日期**: 2026-06-20
 **状态**: 已确认
@@ -30,7 +30,7 @@
 | CLI 入口 | TypeScript / Node.js | Commander.js 或等效 |
 | Web UI | React（后期） | 可视化工作流编排 + 分析仪表盘 |
 | 数据微服务 | Python FastAPI + akshare/baostock | 只做数据抓取和指标计算，不碰 Agent 逻辑 |
-| 数据客户端 | @c2/data-client（独立 npm 包） | TypeScript，封装 Python 服务的 HTTP 调用 |
+| 数据客户端 | @agenttrade/data-client（独立 npm 包） | TypeScript，封装 Python 服务的 HTTP 调用 |
 | Monorepo | pnpm workspaces | 多包统一管理 |
 | 语言/运行 | TypeScript 5.x / Node.js 20+ | |
 
@@ -82,7 +82,7 @@
 │  │  (多Provider) │  │  AgentExecutor│  │  Tracing      │  │
 │  └──────────────┘  └──────────────┘  └───────────────┘  │
 ├──────────────────────┬───────────────────────────────────┤
-│  @c2/data-client     │  Python 数据微服务 (FastAPI)        │
+│  @agenttrade/data-client     │  Python 数据微服务 (FastAPI)        │
 │  (独立 npm 包)       │  akshare / baostock / tulipy       │
 │                      │  :9500                             │
 └──────────────────────┴───────────────────────────────────┘
@@ -340,11 +340,11 @@ d2-data/
 | `GET /reference/{symbol}` | 公司基本信息 |
 | `GET /reference/search?keyword=茅台` | 股票搜索 |
 
-### 6.2 @c2/data-client（独立 npm 包）
+### 6.2 @agenttrade/data-client（独立 npm 包）
 
 ```typescript
 // packages/data-client/src/client.ts
-import { DataClient } from '@c2/data-client';
+import { DataClient } from '@agenttrade/data-client';
 
 const client = new DataClient({ baseUrl: "http://localhost:9500" });
 
@@ -362,16 +362,16 @@ const valuation = await client.financial.valuation("600519");
 const results = await client.reference.search("茅台");
 ```
 
-独立发布，社区开发者可通过 `npm install @c2/data-client` 在自己的 Agent 开发中使用。
+独立发布，社区开发者可通过 `npm install @agenttrade/data-client` 在自己的 Agent 开发中使用。
 
 ---
 
 ## 7. 项目结构（Monorepo）
 
 ```
-c2/
+agenttrade/
 ├── packages/
-│   ├── core/                       # @c2/core — Agent框架 + 工作流引擎
+│   ├── core/                       # @agenttrade/core — Agent框架 + 工作流引擎
 │   │   ├── src/
 │   │   │   ├── agent/
 │   │   │   │   ├── base-agent.ts
@@ -394,7 +394,7 @@ c2/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── agents/                     # @c2/agents — 内置Agent集合
+│   ├── agents/                     # @agenttrade/agents — 内置Agent集合
 │   │   ├── src/
 │   │   │   ├── technical-analyst/
 │   │   │   │   ├── agent.ts
@@ -411,7 +411,7 @@ c2/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── data-client/                # @c2/data-client — Python 服务客户端
+│   ├── data-client/                # @agenttrade/data-client — Python 服务客户端
 │   │   ├── src/
 │   │   │   ├── client.ts
 │   │   │   ├── modules/
@@ -424,7 +424,7 @@ c2/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   └── cli/                        # @c2/cli — CLI 入口
+│   └── cli/                        # @agenttrade/cli — CLI 入口
 │       ├── src/
 │       │   ├── commands/
 │       │   │   ├── analyze.ts
