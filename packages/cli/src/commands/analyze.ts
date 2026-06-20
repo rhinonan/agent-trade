@@ -16,7 +16,7 @@ export interface AnalyzeOptions {
   sector?: string;
   index?: string;
   workflow: string;
-  provider?: "anthropic" | "openai";
+  provider?: "anthropic" | "openai" | "deepseek";
   model?: string;
   dataServiceUrl?: string;
 }

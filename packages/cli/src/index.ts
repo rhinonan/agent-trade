@@ -16,7 +16,7 @@ program
   .option("-s, --sector <name>", "板块名称，如 CPO")
   .option("-i, --index <code>", "指数代码，如 000001")
   .option("-w, --workflow <name>", "工作流名称", "bull-bear")
-  .option("-p, --provider <provider>", "LLM provider: anthropic | openai", "anthropic")
+  .option("-p, --provider <provider>", "LLM provider: anthropic | openai | deepseek", "deepseek")
   .option("-m, --model <name>", "模型名称")
   .option("--data-service <url>", "数据服务地址", "http://localhost:9500")
   .action(async (options) => {

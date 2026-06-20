@@ -2,7 +2,7 @@ import { ChatAnthropic } from "@langchain/anthropic";
 import { ChatOpenAI } from "@langchain/openai";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-export type LLMProvider = "anthropic" | "openai";
+export type LLMProvider = "anthropic" | "openai" | "deepseek";
 
 export interface AnalyzeOptions {
   provider?: LLMProvider;
@@ -19,6 +19,12 @@ export function setDefaultLLMProvider(provider: LLMProvider): void {
 export function createLLM(options: AnalyzeOptions = {}): BaseChatModel {
   if (options.llm) return options.llm;
   const provider = options.provider ?? _defaultProvider;
+  if (provider === "deepseek") {
+    return new ChatOpenAI({
+      modelName: options.modelName ?? "deepseek-chat",
+      configuration: { baseURL: "https://api.deepseek.com/v1" },
+    });
+  }
   if (provider === "openai") {
     return new ChatOpenAI({ modelName: options.modelName ?? "gpt-4o" });
   }
