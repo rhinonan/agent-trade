@@ -37,3 +37,6 @@ export type { AnalyzeOptions, LLMProvider } from "./workflow/primitives/analyze.
 
 export { executePanel } from "./workflow/primitives/panel.js";
 export { executeCritique } from "./workflow/primitives/critique.js";
+export { executeDebate } from "./workflow/primitives/debate.js";
+export { executeVote } from "./workflow/primitives/vote.js";
+export { executeSynthesize } from "./workflow/primitives/synthesize.js";
