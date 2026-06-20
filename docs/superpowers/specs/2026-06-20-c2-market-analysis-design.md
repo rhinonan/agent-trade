@@ -57,7 +57,8 @@
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                    入口层 (CLI / Web UI)                   │
-│              npm run analyze 600519 --workflow bull-bear  │
+│   analyze 600519 --workflow bull-bear  (个股)              │
+│   analyze --sector CPO --workflow roundtable  (板块)       │
 ├──────────────────────────────────────────────────────────┤
 │                    对抗工作流引擎 (自研)                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
@@ -241,11 +242,11 @@ const bullBearWorkflow = defineWorkflow({
 })
 .step("bull-analysis", analyze, {
   agent: { capability: "bullish", topic: "technical" },
-  prompt: "从技术面看多 {symbol}，给出3条核心理由"
+  prompt: "从技术面看多 {target}，给出3条核心理由"
 })
 .step("bear-analysis", analyze, {
   agent: { capability: "bearish", topic: "technical" },
-  prompt: "从技术面看空 {symbol}，给出3条核心理由"
+  prompt: "从技术面看空 {target}，给出3条核心理由"
 })
 .step("cross-critique", parallel, [
   critique({ reviewer: "牛方Agent", targetStep: "bear-analysis" }),
@@ -276,13 +277,28 @@ Builder `.build()` 产出一个 JSON DAG——可视化编排编辑器和手写 
 }
 ```
 
-### 5.3 共享上下文（DebateContext）
+### 5.3 分析目标（Target）
+
+系统不限于个股，支持三层分析粒度，统一用 `target` 表达：
+
+```typescript
+type TargetType = "stock" | "sector" | "index";
+
+interface AnalysisTarget {
+  type: TargetType;
+  code: string;             // stock: "600519", sector: "CPO", index: "000001"
+  name?: string;            // "贵州茅台" / "光电共封装" / "上证指数"
+  market?: "sh" | "sz" | "bj";
+}
+```
+
+### 5.4 共享上下文（DebateContext）
 
 Agent 只能读不能改别人的原始输出，保证信息链可追溯：
 
 ```
 ExecutionContext {
-  symbol: "600519",
+  target: { type: "stock", code: "600519", name: "贵州茅台" },
   task: "短期走势研判",
   marketData: { kline, indicators, ... },     // Agent tools 填充
   
@@ -319,8 +335,9 @@ d2-data/
   routers/
     kline.py                      # K线 + 技术指标
     financial.py                  # 财报数据
-    market.py                     # 行情快照、板块、北向资金（后期）
+    market.py                     # 行情快照、北向资金（后期）
     reference.py                  # 股票基本信息、行业分类
+    sector.py                     # 板块列表、成分股、资金流向
   services/
     akshare_adapter.py            # akshare 封装（MVP）
     indicator_calc.py             # TA 指标计算
@@ -339,6 +356,9 @@ d2-data/
 | `GET /financial/{symbol}/valuation` | 估值指标 (PE/PB/PS/ROE) |
 | `GET /reference/{symbol}` | 公司基本信息 |
 | `GET /reference/search?keyword=茅台` | 股票搜索 |
+| `GET /sector/list` | 板块列表 |
+| `GET /sector/{name}/constituents` | 板块成分股 |
+| `GET /sector/{name}/flow` | 板块资金流向（后期） |
 
 ### 6.2 @agenttrade/data-client（独立 npm 包）
 
@@ -360,6 +380,11 @@ const valuation = await client.financial.valuation("600519");
 
 // 搜索
 const results = await client.reference.search("茅台");
+
+// 板块
+const sectors = await client.sector.list();
+const constituents = await client.sector.constituents("CPO");
+// → [{ symbol: "300394", name: "天孚通信", weight: 0.12 }, ...]
 ```
 
 独立发布，社区开发者可通过 `npm install @agenttrade/data-client` 在自己的 Agent 开发中使用。
@@ -418,7 +443,8 @@ agenttrade/
 │   │   │   │   ├── kline.ts
 │   │   │   │   ├── financial.ts
 │   │   │   │   ├── market.ts
-│   │   │   │   └── reference.ts
+│   │   │   │   ├── reference.ts
+│   │   │   │   └── sector.ts
 │   │   │   ├── types.ts
 │   │   │   └── index.ts
 │   │   ├── package.json
@@ -463,8 +489,8 @@ agenttrade/
 | **工作流引擎** | 6 个原语、Builder DSL、JSON DAG、状态机、共享上下文 |
 | **内置 Agent（3个）** | 技术面分析、财报分析、裁判 |
 | **内置工作流（2个）** | bull-bear（多空对抗）、quick-scan（快速扫描） |
-| **数据微服务** | K线、技术指标、财报摘要、股票基本信息 |
-| **CLI** | `analyze` 命令，终端输出 Markdown 报告 |
+| **数据微服务** | K线、技术指标、财报摘要、股票基本信息、板块成分股 |
+| **CLI** | `analyze` 命令（个股/板块），终端输出 Markdown 报告 |
 | **LLM 支持** | Anthropic + OpenAI（通过 LangChain.js） |
 
 ### 不包含（后续迭代）
@@ -526,6 +552,24 @@ $ npm run analyze 600519 --workflow bull-bear
                 止损设在布林带下轨下方3%
 
 ⏱️  耗时: 14.2s  |  LLM调用: 4次  |  花费: ¥0.32
+```
+
+板块分析同样流程，输入板块名即可：
+
+```bash
+$ npm run analyze --sector CPO --workflow panel
+
+🔍 正在分析 CPO 板块（光电共封装）...
+   成分股: 天孚通信、中际旭创、新易盛...
+
+📊 技术面面板 (3 Agent)
+   ✅ technical-analyst: 板块整体放量突破...
+   ✅ financial-analyst: 成分股Q1业绩普遍超预期...
+   ✅ sentiment-analyst: 北向资金连续3日净流入...
+
+📋 综合: CPO短期看多，龙头天孚通信弹性最大
+```
+
 ```
 
 ---
