@@ -1,0 +1,11 @@
+{
+  "name": "agenttrade",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "analyze": "pnpm --filter @agenttrade/cli exec agenttrade"
+  }
+}
