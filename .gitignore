@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnpm/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Claude local config
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
