@@ -106,11 +106,15 @@ async function startAnalysis(payload: { code?: string; sector?: string; workflow
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html, body {
+  background: var(--bg-root) !important;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg-root);
   color: var(--text-primary);
   letter-spacing: 0.01em;
+  min-height: 100vh;
 }
 
 /* glass surface utility */
