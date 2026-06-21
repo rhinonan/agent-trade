@@ -1,7 +1,7 @@
 <template>
   <div
-    class="flex flex-col items-center justify-center flex-1 px-6"
-    style="min-height: 70vh; animation: fade-in 0.4s ease-out;"
+    class="flex flex-col items-center justify-center flex-1 px-6 sm:px-12 md:px-20 py-16"
+    style="animation: fade-in 0.4s ease-out;"
   >
     <!-- Analysis mode tabs -->
     <div class="flex gap-1 mb-8 p-0.5 rounded-lg" style="background: var(--bg-surface); border: 1px solid var(--border-default);">
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Input card -->
-    <div class="glass-panel-glow p-8 w-full max-w-xl">
+    <div class="glass-panel-glow p-8 w-full max-w-2xl">
       <!-- AutoComplete -->
       <div class="mb-5">
         <label class="block mb-2 font-medium" style="color: var(--text-secondary); font-size: 13px; letter-spacing: 0.03em; text-transform: uppercase;">

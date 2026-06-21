@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex-1 flex flex-col overflow-y-auto px-10 py-8"
+    class="flex-1 flex flex-col overflow-y-auto px-6 sm:px-12 md:px-16 py-10"
     style="animation: fade-in 0.3s ease-out;"
   >
     <!-- Step progress -->
