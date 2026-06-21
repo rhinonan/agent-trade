@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <div class="flex items-center justify-between mb-3 pb-2 border-b" style="border-color: var(--border-default);">
+  <div class="flex flex-col flex-1 min-h-0">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b" style="border-color: var(--border-default);">
       <h2 class="text-sm font-semibold" style="color: var(--text-primary); letter-spacing: 0.02em;">实时输出</h2>
       <span v-if="isRunning" class="inline-flex items-center gap-1.5 text-xs" style="color: var(--cyan);">
         <span class="inline-block w-2 h-2 rounded-full" style="background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: glow-pulse 1.2s ease-in-out infinite;"></span>
@@ -9,7 +9,7 @@
     </div>
     <div
       ref="logContainer"
-      class="h-80 overflow-y-auto p-3 rounded-lg font-mono text-xs leading-relaxed relative"
+      class="flex-1 min-h-0 overflow-y-auto p-4 rounded-lg font-mono text-[13px] leading-relaxed relative"
       style="background: var(--bg-root); border: 1px solid var(--border-default);"
     >
       <!-- scan line overlay -->
@@ -17,13 +17,13 @@
         class="absolute inset-0 pointer-events-none overflow-hidden rounded-lg"
         style="background: linear-gradient(180deg, transparent 60%, rgba(0, 212, 255, 0.015) 60.5%, transparent 61%); animation: scan-line 6s linear infinite;"
       ></div>
-      <div v-if="logs.length === 0" class="text-center py-5" style="color: var(--text-muted);">
+      <div v-if="logs.length === 0" class="text-center py-6" style="color: var(--text-muted);">
         等待输出...
       </div>
       <div
         v-for="(entry, index) in logs"
         :key="index"
-        class="flex gap-2 py-0.5 relative"
+        class="flex gap-2 py-1 relative"
         style="animation: fade-in 0.2s ease-out;"
       >
         <span class="whitespace-nowrap" style="color: var(--text-muted);">{{ formatTime(entry.time) }}</span>
