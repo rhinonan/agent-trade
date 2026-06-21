@@ -189,6 +189,34 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
 
+/* PrimeVue dark overrides — force dark surfaces in styled mode */
+.p-autocomplete-input,
+.p-select-label,
+.p-select-list-container,
+.p-autocomplete-panel {
+  background: var(--bg-root) !important;
+  border-color: var(--border-glass) !important;
+  color: var(--text-primary) !important;
+}
+.p-select-option,
+.p-autocomplete-option {
+  background: var(--bg-root) !important;
+  color: var(--text-primary) !important;
+}
+.p-select-option:hover,
+.p-autocomplete-option:hover {
+  background: rgba(0, 212, 255, 0.08) !important;
+}
+.p-select-option.p-focus,
+.p-autocomplete-option.p-focus {
+  background: rgba(0, 212, 255, 0.12) !important;
+}
+.p-select-overlay,
+.p-autocomplete-overlay {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-glass) !important;
+}
+
 /* divider */
 .divider-cyan {
   height: 1px;
