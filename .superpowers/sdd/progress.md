@@ -19,3 +19,15 @@ Task 14: complete (commits bec248d..003d5c5, full build+test suite clean, 60/60 
 
 ## UI Tech Overhaul (2026-06-21)
 Task 1: complete (commits 631cb3d..0b04ee3, review clean, 3 minor notes)
+Task 2: complete (commits 0b04ee3..00ce42c, review clean)
+Task 3: complete (commits 00ce42c..862cf45, review clean)
+Task 4: complete (commits 862cf45..789b7e6, review clean, spec hardcoded colors noted)
+Task 5: complete (commits 789b7e6..d086aec, review clean, rgba spec defect noted)
+Task 6: complete (commits d086aec..3e4b68b, review clean, minor key/animation notes)
+Task 7: complete (commits 3e4b68b..76ecd1f, review clean, nested blur noted)
+Task 8: complete (commits 76ecd1f..2ef4e4b, review clean, hardcoded endpoints noted)
+Task 9: complete (commits 2ef4e4b..22d35ce, review clean)
+Task 10: complete (commits 22d35ce..f99f2bf, review clean, double glow bar noted)
+Task 11: complete (commits f99f2bf..4d195de, review clean)
+Task 12: complete (commits 4d195de..554492a, typecheck+build pass)
+Final review: Ready to merge — 100% specs covered, zero must-fix issues
