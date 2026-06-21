@@ -1,37 +1,28 @@
 <template>
   <div>
-    <h2
-      class="text-sm font-semibold mb-4 pb-2 border-b"
-      style="color: var(--text-primary); border-color: var(--border-default); letter-spacing: 0.02em;"
-    >分析流程</h2>
-    <div v-if="steps.length === 0" class="text-center py-5" style="color: var(--text-muted); font-size: 13px;">
-      等待分析开始...
-    </div>
-    <div v-else class="flex flex-wrap items-start gap-1">
-      <template v-for="(step, index) in steps" :key="step.id">
-        <!-- connector line -->
-        <div v-if="index > 0" class="flex items-center mx-1">
-          <span class="w-5 h-px" style="background: var(--border-default);"></span>
-          <span class="text-xs ml-0.5" style="color: var(--text-muted);">▸</span>
-        </div>
-        <!-- step capsule -->
-        <div
-          class="flex items-start gap-2 px-3.5 py-2.5 rounded-lg min-w-[140px] transition-all duration-300 glass-panel"
-          :style="stepStyle(step)"
-        >
-          <span
-            class="inline-block w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
-            :style="dotStyle(step)"
-          ></span>
-          <div class="flex flex-col gap-0.5">
-            <span class="text-[13px] font-semibold" style="color: var(--text-primary);">{{ step.id }}</span>
-            <span class="text-[11px]" style="color: var(--text-secondary);">{{ step.type }}</span>
-            <span v-if="step.agentIds.length > 0" class="text-[11px]" style="color: var(--cyan);">
-              {{ step.agentIds.join(", ") }}
-            </span>
+    <div class="flex items-center gap-4">
+      <h2 class="text-sm font-semibold whitespace-nowrap" style="color: var(--text-primary); letter-spacing: 0.02em;">分析流程</h2>
+      <div v-if="steps.length === 0" class="text-center flex-1" style="color: var(--text-muted); font-size: 13px;">
+        等待分析开始...
+      </div>
+      <div v-else class="flex flex-wrap items-center gap-1 flex-1">
+        <template v-for="(step, index) in steps" :key="step.id">
+          <div v-if="index > 0" class="flex items-center mx-0.5">
+            <span class="w-3 h-px" style="background: var(--border-default);"></span>
+            <span class="text-xs ml-0.5" style="color: var(--text-muted);">▸</span>
           </div>
-        </div>
-      </template>
+          <div
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-md min-w-[120px] transition-all duration-300 border"
+            :style="stepStyle(step)"
+          >
+            <span
+              class="inline-block w-2 h-2 rounded-full flex-shrink-0"
+              :style="dotStyle(step)"
+            ></span>
+            <span class="text-[12px] font-semibold" style="color: var(--text-primary);">{{ step.id }}</span>
+          </div>
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -51,11 +42,12 @@ function dotStyle(step: StepState): Record<string, string> {
 }
 
 function stepStyle(step: StepState): Record<string, string> {
+  const base: Record<string, string> = { background: "rgba(13, 21, 37, 0.4)" };
   switch (step.status) {
-    case "running": return { borderColor: "var(--cyan)", boxShadow: "var(--shadow-active)", animation: "fade-in 0.3s ease-out" };
-    case "complete": return { borderColor: "rgba(0, 229, 160, 0.3)" };
-    case "error": return { borderColor: "rgba(255, 68, 102, 0.4)" };
-    default: return {};
+    case "running": return { ...base, borderColor: "var(--cyan)", boxShadow: "var(--shadow-active)", animation: "fade-in 0.3s ease-out" };
+    case "complete": return { ...base, borderColor: "rgba(0, 229, 160, 0.3)" };
+    case "error": return { ...base, borderColor: "rgba(255, 68, 102, 0.4)" };
+    default: return { ...base, borderColor: "var(--border-default)" };
   }
 }
 </script>
