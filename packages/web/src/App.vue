@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-[#0f1117] text-[#e1e4e8] font-sans">
+  <div class="min-h-screen flex flex-col text-[#e8ecf2] font-sans" style="background: var(--bg-root);">
     <AppHeader />
     <main class="flex-1 flex overflow-hidden">
-      <aside class="w-80 min-w-80 bg-[#161b22] border-r border-[#30363d] p-5 overflow-y-auto">
+      <aside class="w-80 min-w-80 border-r p-5 overflow-y-auto" style="background: var(--bg-surface-glass); border-color: var(--border-default);">
         <InputPanel />
       </aside>
-      <section class="flex-1 flex flex-col overflow-y-auto">
+      <section class="flex-1 flex flex-col overflow-y-auto" style="background: var(--bg-root);">
         <FlowView />
         <ReportView v-if="store.status === 'complete'" />
       </section>
@@ -24,6 +24,132 @@ const store = useAnalysisStore();
 </script>
 
 <style>
+:root {
+  --cyan: #00d4ff;
+  --teal: #00e5a0;
+  --rose: #ff4466;
+  --amber: #f0b90b;
+  --bg-root: #060b14;
+  --bg-surface: #0d1525;
+  --bg-surface-glass: rgba(13, 21, 37, 0.65);
+  --border-default: #1a2a45;
+  --border-glass: rgba(0, 212, 255, 0.15);
+  --text-primary: #e8ecf2;
+  --text-secondary: #8899b4;
+  --text-muted: #4a5568;
+  --shadow-subtle: 0 0 8px rgba(0, 212, 255, 0.12);
+  --shadow-focus: 0 0 12px rgba(0, 212, 255, 0.25);
+  --shadow-active: 0 0 20px rgba(0, 212, 255, 0.35);
+  --shadow-strong: 0 0 15px rgba(0, 212, 255, 0.4);
+  --glass-bg: rgba(13, 21, 37, 0.65);
+  --glass-border: rgba(0, 212, 255, 0.15);
+  --glass-blur: blur(12px);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f1117; color: #e1e4e8; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg-root);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+/* glass surface utility */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+}
+
+/* glass panel with top cyan glow */
+.glass-panel-glow {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.glass-panel-glow::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.6;
+}
+
+/* form input base */
+.input-field {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-root);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+.input-field:focus {
+  border-color: var(--cyan);
+  box-shadow: var(--shadow-focus);
+}
+
+/* select base */
+.select-field {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-root);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.select-field:focus {
+  border-color: var(--cyan);
+  box-shadow: var(--shadow-focus);
+}
+.select-field option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-root); }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* animations */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
+}
 </style>
