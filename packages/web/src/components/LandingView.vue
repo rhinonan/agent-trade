@@ -104,6 +104,10 @@ const emit = defineEmits<{
 }>();
 
 const store = useAnalysisStore();
+
+const inputValue = ref<Suggestion | null>(null);
+const inputQuery = ref("");
+
 const { suggestions } = useAutocomplete(
   computed(() => inputQuery.value),
   computed(() => store.targetType),
@@ -118,9 +122,6 @@ const workflows = [
   { name: "🐂🐻 牛熊对抗 (Bull-Bear)", value: "bull-bear" },
   { name: "⚡ 快速扫描 (Quick Scan)", value: "quick-scan" },
 ];
-
-const inputValue = ref<Suggestion | null>(null);
-const inputQuery = ref("");
 const selectedWorkflow = ref("bull-bear");
 const error = ref<string | null>(null);
 

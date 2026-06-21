@@ -67,3 +67,4 @@ Task 7: complete (commits 7466b4f..6e50e8a, review clean after setTargetType fix
 Task 8: complete (commits 6e50e8a..79af349, review clean)
 Task 9: complete (no changes needed — padding already applied in prior layout upgrade)
 Task 10: complete (typecheck+build+tests all pass, 9/9 tests)
+Final review fixes: complete (commits 79af349..70409a8 — reset button, res.json guard, poll try/catch, tab-switch abort, MarkdownRenderer unstage)
