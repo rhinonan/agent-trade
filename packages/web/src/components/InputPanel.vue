@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h2 class="text-base font-semibold text-[#e1e4e8] mb-5 pb-2.5 border-b border-[#30363d]">分析参数</h2>
+    <h2
+      class="text-base font-semibold mb-5 pb-2.5 border-b"
+      style="color: var(--text-primary); border-color: var(--border-default); letter-spacing: 0.02em;"
+    >分析参数</h2>
 
     <StockInput v-model="stockCode" />
     <SectorInput v-model="sectorName" />
@@ -10,28 +13,43 @@
       v-model:model="selectedModel"
     />
 
-    <div v-if="error" class="px-3 py-2.5 mb-3.5 bg-[#49020233] border border-[#f8514966] rounded-md text-[#f85149] text-[13px]">{{ error }}</div>
+    <div
+      v-if="error"
+      class="px-3 py-2.5 mb-3.5 rounded-md text-[13px]"
+      style="background: rgba(255, 68, 102, 0.08); border: 1px solid rgba(255, 68, 102, 0.4); color: var(--rose);"
+    >{{ error }}</div>
 
     <button
-      class="w-full p-3 bg-[#238636] border-none rounded-md text-white text-[15px] font-semibold cursor-pointer transition-colors mb-3 hover:enabled:bg-[#2ea043] disabled:bg-[#21262d] disabled:text-[#484f58] disabled:cursor-not-allowed"
+      class="w-full p-3 border-none rounded-md text-white text-[15px] font-semibold cursor-pointer transition-all mb-3 relative overflow-hidden"
       :disabled="isRunning || !canStart"
+      :style="isRunning
+        ? { background: 'var(--bg-surface)', color: 'var(--text-muted)', cursor: 'not-allowed', border: '1px solid var(--border-default)' }
+        : { background: 'linear-gradient(135deg, var(--cyan), #0088aa)', boxShadow: 'var(--shadow-strong)' }
+      "
       @click="startAnalysis"
+      @mouseenter="(e) => { if (!isRunning && canStart) { (e.target as HTMLElement).style.boxShadow = '0 0 24px rgba(0,212,255,0.55)'; (e.target as HTMLElement).style.transform = 'scale(1.02)'; } }"
+      @mouseleave="(e) => { if (!isRunning && canStart) { (e.target as HTMLElement).style.boxShadow = 'var(--shadow-strong)'; (e.target as HTMLElement).style.transform = 'scale(1)'; } }"
     >
-      {{ isRunning ? "⏳ 分析中..." : "🔍 开始分析" }}
+      <span v-if="isRunning" class="inline-flex items-center gap-2">
+        <span class="inline-block w-4 h-4 border-2 rounded-full" style="border-color: var(--text-muted); border-top-color: transparent; animation: spin-ring 0.8s linear infinite;"></span>
+        分析中...
+      </span>
+      <span v-else>▶ 开始分析</span>
     </button>
 
     <div v-if="isRunning && steps.length > 0" class="mt-3">
-      <p class="text-[13px] text-[#8b949e]">
+      <p class="text-[13px]" style="color: var(--text-secondary);">
         进度: {{ completedSteps }}/{{ steps.length }} 步骤
       </p>
     </div>
 
     <button
       v-if="status === 'complete' || status === 'error'"
-      class="w-full p-2.5 bg-[#21262d] border border-[#30363d] rounded-md text-sm text-[#8b949e] cursor-pointer transition-all hover:bg-[#30363d] hover:text-[#e1e4e8]"
+      class="glass-panel w-full p-2.5 text-sm cursor-pointer transition-all hover:border-[var(--cyan)] hover:text-[var(--cyan)]"
+      style="color: var(--text-secondary);"
       @click="store.reset()"
     >
-      🔄 新分析
+      ↻ 新分析
     </button>
   </div>
 </template>
