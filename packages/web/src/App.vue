@@ -45,25 +45,33 @@ async function startAnalysis(payload: { code?: string; sector?: string; workflow
       body: JSON.stringify(body),
     });
 
-    const data = await res.json();
     if (!res.ok) {
-      store.handleError({ message: data.message ?? "请求失败" });
+      let message = "请求失败";
+      try {
+        const data = await res.json();
+        message = data.message ?? message;
+      } catch { /* non-JSON body — use default message */ }
+      store.handleError({ message });
       return;
     }
 
+    const data = await res.json();
     store.sessionId = data.sessionId;
     connectWS(data.sessionId);
 
     // Poll fallback
-    setTimeout(async () => {
-      const statusRes = await fetch(`/api/analyze/${data.sessionId}`);
-      const statusData = await statusRes.json();
-      if (statusData.status === "error") {
-        store.handleError({ message: statusData.error ?? "分析失败" });
-      }
+    const pollTimer = setTimeout(async () => {
+      try {
+        const statusRes = await fetch(`/api/analyze/${data.sessionId}`);
+        if (!statusRes.ok) return;
+        const statusData = await statusRes.json();
+        if (statusData.status === "error") {
+          store.handleError({ message: statusData.error ?? "分析失败" });
+        }
+      } catch { /* poll failed silently — WS is the primary path */ }
     }, 500);
-  } catch (err: any) {
-    store.handleError({ message: err.message ?? "网络错误" });
+  } catch (err: unknown) {
+    store.handleError({ message: err instanceof Error ? err.message : "网络错误" });
   }
 }
 </script>

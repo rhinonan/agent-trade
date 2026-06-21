@@ -16,6 +16,15 @@
       style="animation: fade-in 0.4s ease-out;"
     >
       <ReportView />
+      <div class="flex justify-center mt-8 pb-6">
+        <button
+          class="glass-panel px-6 py-3 text-sm cursor-pointer transition-all hover:border-[var(--cyan)] hover:text-[var(--cyan)]"
+          style="color: var(--text-secondary);"
+          @click="store.reset()"
+        >
+          ↻ 新分析
+        </button>
+      </div>
     </div>
 
     <div

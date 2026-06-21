@@ -88,6 +88,11 @@ export function useAutocomplete(
   watch(
     [query, targetType],
     ([q, type]) => {
+      // Abort any in-flight API request when switching modes
+      if (type !== "stock") {
+        abortController?.abort();
+        abortController = null;
+      }
       const pool = type === "sector" ? SECTOR_LIST : HOT_STOCKS;
       suggestions.value = localFilter(q, pool);
       // In stock mode, also try API for more results
