@@ -1,18 +1,21 @@
-# AgentTrade MVP Progress Ledger
+# AgentTrade Web UI Progress Ledger
 Started: 2026-06-20
 
-Task 1: complete (commits b802057..4942a2d, review clean)
-Task 2: complete (commits 4942a2d..bb238ca, review clean after fix)
-Task 3: complete (commits bb238ca..cd755b2, review clean)
-Task 4: complete (commits cd755b2..4ebb745, review clean)
-Task 5: complete (commits 4ebb745..3098d69, review clean)
-Task 6: complete (commits 3098d69..b899f8d, review clean)
-Task 7: complete (commits b899f8d..d9f4329, review clean)
-Task 8: complete (commits d9f4329..46e9248, review clean)
-Task 9: complete (commits 46e9248..be7e83e, review clean)
-Task 10: complete (commits be7e83e..540878b, review clean after fix)
-Task 11: complete (commits 540878b..93a0fbe, review clean)
-Task 12: complete (commits 93a0fbe..3800986, review clean)
-Task 13: complete (commits 3800986..2716d6c, review clean)
-Task 14: complete (commits 2716d6c..765efa4, review clean)
-Final fix: complete (commit d6b2c8b, C1+C2+I1+I2 resolved)
+
+Task 1: complete (commits 48513b9..f5b53ab, review clean)
+Task 2: complete (commits f5b53ab..5457658, review clean after minor fix)
+Task 3: complete (commits 5457658..6ab800f, review clean, minor obs noted)
+Task 4: complete (commits 6ab800f..13224fc, review clean)
+Task 5: complete (commits 13224fc..7245277, review clean)
+Task 6: complete (commits 7245277..8e92a7a, review clean, plan deviation justified)
+Task 7: complete (commits 8e92a7a..ea4edf1, review clean)
+Task 8: complete (commits ea4edf1..5ffcf40, review clean after type fix)
+Task 9: complete (commits 5ffcf40..fad395a, review clean)
+Task 10: complete (commits fad395a..0b68009, review clean)
+Task 11: complete (commits 0b68009..98fc062, review clean, minor disconnectWS note)
+Task 12: complete (commits 98fc062..ca9c602, review clean)
+Task 13: complete (commits ca9c602..bec248d, review clean)
+Task 14: complete (commits bec248d..003d5c5, full build+test suite clean, 60/60 pass)
+
+## UI Tech Overhaul (2026-06-21)
+Task 1: complete (commits 631cb3d..0b04ee3, review clean, 3 minor notes)

@@ -1,257 +1,188 @@
-### Task 1: Monorepo Scaffolding
+### Task 1: 全局样式基础 (App.vue)
 
 **Files:**
-- Create: `package.json` (root)
-- Create: `pnpm-workspace.yaml`
-- Create: `tsconfig.base.json`
-- Create: `.gitignore` (already exists, verify)
-- Create: `packages/core/package.json`
-- Create: `packages/core/tsconfig.json`
-- Create: `packages/agents/package.json`
-- Create: `packages/agents/tsconfig.json`
-- Create: `packages/data-client/package.json`
-- Create: `packages/data-client/tsconfig.json`
-- Create: `packages/cli/package.json`
-- Create: `packages/cli/tsconfig.json`
+- Modify: `packages/web/src/App.vue` (template + style)
 
-**Interfaces:**
-- Consumes: nothing
-- Produces: pnpm workspaces monorepo with 4 packages, all building cleanly
+**Produces:** CSS 变量 `--cyan`, `--teal`, `--rose`, `--bg-root`, `--bg-surface`, `--border-default`; `@keyframes glow-pulse`, `@keyframes scan-line`, `@keyframes shake`, `@keyframes fade-in`; 自定义滚动条样式; 全局排版基础
 
-- [ ] **Step 1: Write root package.json**
+- [ ] **Step 1: 替换 App.vue 全局样式**
 
-```json
-{
-  "name": "agenttrade",
-  "private": true,
-  "packageManager": "pnpm@9.0.0",
-  "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "analyze": "pnpm --filter @agenttrade/cli exec agenttrade"
-  }
+将当前 `<style>` 块替换为完整的全局样式基础。`<template>` 的根 class 同步更新。
+
+`packages/web/src/App.vue`:
+
+```vue
+<template>
+  <div class="min-h-screen flex flex-col text-[#e8ecf2] font-sans" style="background: var(--bg-root);">
+    <AppHeader />
+    <main class="flex-1 flex overflow-hidden">
+      <aside class="w-80 min-w-80 border-r p-5 overflow-y-auto" style="background: var(--bg-surface-glass); border-color: var(--border-default);">
+        <InputPanel />
+      </aside>
+      <section class="flex-1 flex flex-col overflow-y-auto" style="background: var(--bg-root);">
+        <FlowView />
+        <ReportView v-if="store.status === 'complete'" />
+      </section>
+    </main>
+  </div>
+</template>
+
+<script setup lang="ts">
+import AppHeader from "./components/AppHeader.vue";
+import InputPanel from "./components/InputPanel.vue";
+import FlowView from "./components/FlowView.vue";
+import ReportView from "./components/ReportView.vue";
+import { useAnalysisStore } from "@/stores/analysis";
+
+const store = useAnalysisStore();
+</script>
+
+<style>
+:root {
+  --cyan: #00d4ff;
+  --teal: #00e5a0;
+  --rose: #ff4466;
+  --amber: #f0b90b;
+  --bg-root: #060b14;
+  --bg-surface: #0d1525;
+  --bg-surface-glass: rgba(13, 21, 37, 0.65);
+  --border-default: #1a2a45;
+  --border-glass: rgba(0, 212, 255, 0.15);
+  --text-primary: #e8ecf2;
+  --text-secondary: #8899b4;
+  --text-muted: #4a5568;
+  --shadow-subtle: 0 0 8px rgba(0, 212, 255, 0.12);
+  --shadow-focus: 0 0 12px rgba(0, 212, 255, 0.25);
+  --shadow-active: 0 0 20px rgba(0, 212, 255, 0.35);
+  --shadow-strong: 0 0 15px rgba(0, 212, 255, 0.4);
+  --glass-bg: rgba(13, 21, 37, 0.65);
+  --glass-border: rgba(0, 212, 255, 0.15);
+  --glass-blur: blur(12px);
 }
-```
 
-- [ ] **Step 2: Write pnpm-workspace.yaml**
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-```yaml
-packages:
-  - "packages/*"
-```
-
-- [ ] **Step 3: Write tsconfig.base.json**
-
-```json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": ["ES2022"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg-root);
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
 }
-```
 
-- [ ] **Step 4: Write packages/core/package.json**
-
-```json
-{
-  "name": "@agenttrade/core",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
-  "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@langchain/core": "^0.3.0",
-    "langchain": "^0.3.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0",
-    "@types/node": "^20.0.0"
-  }
+/* glass surface utility */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
 }
-```
 
-- [ ] **Step 5: Write packages/core/tsconfig.json**
-
-```json
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src"]
+/* glass panel with top cyan glow */
+.glass-panel-glow {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
 }
-```
-
-- [ ] **Step 6: Write packages/agents/package.json**
-
-```json
-{
-  "name": "@agenttrade/agents",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
-  "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@agenttrade/core": "workspace:*",
-    "@agenttrade/data-client": "workspace:*",
-    "@langchain/core": "^0.3.0",
-    "langchain": "^0.3.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
-  }
+.glass-panel-glow::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0.6;
 }
-```
 
-- [ ] **Step 7: Write packages/agents/tsconfig.json**
-
-```json
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src"]
+/* form input base */
+.input-field {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-root);
+  border: 1px solid var(--border-glass);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-```
-
-- [ ] **Step 8: Write packages/data-client/package.json**
-
-```json
-{
-  "name": "@agenttrade/data-client",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": { ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" } },
-  "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
-  }
+.input-field::placeholder {
+  color: var(--text-muted);
 }
-```
-
-- [ ] **Step 9: Write packages/data-client/tsconfig.json**
-
-```json
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src"]
+.input-field:focus {
+  border-color: var(--cyan);
+  box-shadow: var(--shadow-focus);
 }
-```
 
-- [ ] **Step 10: Write packages/cli/package.json**
-
-```json
-{
-  "name": "@agenttrade/cli",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "main": "./dist/index.js",
-  "bin": { "agenttrade": "./dist/index.js" },
-  "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@agenttrade/core": "workspace:*",
-    "@agenttrade/agents": "workspace:*",
-    "@agenttrade/data-client": "workspace:*",
-    "commander": "^12.0.0",
-    "chalk": "^5.0.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0",
-    "@types/node": "^20.0.0"
-  }
+/* select base */
+.select-field {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-root);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-```
-
-- [ ] **Step 11: Write packages/cli/tsconfig.json**
-
-```json
-{
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
-  "include": ["src"]
+.select-field:focus {
+  border-color: var(--cyan);
+  box-shadow: var(--shadow-focus);
 }
+.select-field option {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-root); }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* animations */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(400%); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin-ring {
+  to { transform: rotate(360deg); }
+}
+</style>
 ```
 
-- [ ] **Step 12: Create placeholder src/index.ts in each package**
-
-`packages/core/src/index.ts`:
-```typescript
-export const VERSION = "0.1.0";
-```
-
-`packages/agents/src/index.ts`:
-```typescript
-export const VERSION = "0.1.0";
-```
-
-`packages/data-client/src/index.ts`:
-```typescript
-export const VERSION = "0.1.0";
-```
-
-`packages/cli/src/index.ts`:
-```typescript
-console.log("AgentTrade CLI v0.1.0");
-```
-
-- [ ] **Step 13: Install dependencies and verify build**
+- [ ] **Step 2: 验证 dev server 启动无报错**
 
 ```bash
-cd D:\c2 && pnpm install && pnpm build
+cd packages/web && npx vite --host 0.0.0.0 &
+sleep 3 && curl -s http://localhost:5173 | head -20
 ```
-Expected: all 4 packages compile without errors.
 
-- [ ] **Step 14: Commit**
+预期: 页面返回 HTML，无 Vite 编译报错。
+
+- [ ] **Step 3: Commit**
 
 ```bash
-git add -A
-git commit -m "scaffold: pnpm monorepo with core/agents/data-client/cli packages"
+git add packages/web/src/App.vue
+git commit -m "feat(web): add global CSS variables, animations, and glass panel base styles"
 ```
 
 ---
