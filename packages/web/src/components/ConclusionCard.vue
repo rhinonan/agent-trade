@@ -1,13 +1,15 @@
 <template>
-  <div class="glass-panel-glow p-[18px] relative" style="overflow: hidden;">
-    <!-- top glow accent -->
+  <div class="glass-panel p-[18px] flex gap-3" style="overflow: hidden;">
+    <!-- left accent bar -->
     <div
-      class="absolute top-0 left-0 right-0 h-[3px]"
-      style="background: linear-gradient(90deg, transparent, var(--cyan), transparent); opacity: 0.8;"
+      class="w-[3px] flex-shrink-0 rounded-full self-stretch"
+      style="background: linear-gradient(180deg, var(--cyan), var(--teal)); box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);"
     ></div>
-    <h3 class="text-[15px] font-semibold mb-3" style="color: var(--cyan); letter-spacing: 0.02em;">综合研判</h3>
-    <div class="text-sm leading-relaxed whitespace-pre-wrap" style="color: var(--text-primary);">
-      <p>{{ conclusion }}</p>
+    <div class="flex-1">
+      <h3 class="text-[15px] font-semibold mb-3" style="color: var(--cyan); letter-spacing: 0.02em;">综合研判</h3>
+      <div class="text-sm leading-relaxed whitespace-pre-wrap" style="color: var(--text-primary);">
+        <p>{{ conclusion }}</p>
+      </div>
     </div>
   </div>
 </template>
