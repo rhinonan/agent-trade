@@ -2,7 +2,7 @@
   <div class="min-h-screen flex flex-col text-[#e8ecf2] font-sans" style="background: var(--bg-root);">
     <AppHeader />
     <main class="flex-1 flex overflow-hidden">
-      <aside class="w-80 min-w-80 border-r p-5 overflow-y-auto" style="background: var(--bg-surface-glass); border-color: var(--border-default);">
+      <aside class="w-84 min-w-84 border-r p-6 overflow-y-auto" style="background: var(--bg-surface-glass); border-color: var(--border-default);">
         <InputPanel />
       </aside>
       <section class="flex-1 flex flex-col overflow-y-auto" style="background: var(--bg-root);">
@@ -44,6 +44,11 @@ const store = useAnalysisStore();
   --glass-bg: rgba(13, 21, 37, 0.65);
   --glass-border: rgba(0, 212, 255, 0.15);
   --glass-blur: blur(12px);
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -130,6 +135,25 @@ body {
 ::-webkit-scrollbar-track { background: var(--bg-root); }
 ::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* divider */
+.divider-cyan {
+  height: 1px;
+  border: none;
+  background: linear-gradient(90deg, var(--cyan), transparent 60%);
+  margin: 0;
+}
+
+/* card group title */
+.card-group-title {
+  color: var(--text-secondary);
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-default);
+}
 
 /* animations */
 @keyframes glow-pulse {
