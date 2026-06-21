@@ -1,65 +1,119 @@
-### Task 1: Install PrimeVue and configure in main.ts
+### Task 1: Project Scaffolding
 
 **Files:**
-- Modify: `packages/web/package.json`
-- Modify: `packages/web/src/main.ts`
+- Create: `d:/douyin-distill/package.json`
+- Create: `d:/douyin-distill/tsconfig.json`
+- Create: `d:/douyin-distill/.gitignore`
+- Create: `d:/douyin-distill/.env.example`
+- Create: `d:/douyin-distill/README.md` (skeleton)
 
 **Interfaces:**
-- Consumes: nothing
-- Produces: PrimeVue plugin registered globally, unstyled mode
+- Produces: `package.json` with `"name": "douyin-distill"`, `"type": "module"`, bin entry `"douyin-distill": "./dist/index.js"`, scripts `build`, `dev`, `test`, deps `commander`, `chalk`, `ora`, devDeps `typescript`, `vitest`, `@types/node`
 
-- [ ] **Step 1: Add primevue dependency**
+- [ ] **Step 1: Initialize repo and package.json**
 
 ```bash
-pnpm --filter @agenttrade/web add primevue
+mkdir d:/douyin-distill
+cd d:/douyin-distill
+git init
+pnpm init
 ```
 
-- [ ] **Step 2: Run pnpm install to update lockfile**
+Then write `package.json`:
+
+```json
+{
+  "name": "douyin-distill",
+  "version": "0.1.0",
+  "description": "Distill Douyin bloggers into AI agent prompts",
+  "type": "module",
+  "bin": {
+    "douyin-distill": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.12.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+```
+
+- [ ] **Step 2: Write tsconfig.json**
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "sourceMap": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "test"]
+}
+```
+
+- [ ] **Step 3: Write .gitignore**
+
+```
+node_modules/
+dist/
+.env
+*.tsbuildinfo
+```
+
+- [ ] **Step 4: Write .env.example**
+
+```
+DOUYIN_API_URL=http://localhost:9501
+LLM_API_KEY=your-api-key
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_MODEL=deepseek-chat
+```
+
+- [ ] **Step 5: Install and verify build**
 
 ```bash
+cd d:/douyin-distill
 pnpm install
+mkdir -p src
+echo 'console.log("ok");' > src/index.ts
+pnpm build
+node dist/index.js
 ```
 
-- [ ] **Step 3: Configure PrimeVue in main.ts**
+Expected: prints `ok`
 
-Read the current file at `packages/web/src/main.ts`:
-```ts
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import App from "./App.vue";
-
-const app = createApp(App);
-app.use(createPinia());
-app.mount("#app");
-```
-
-Replace with:
-```ts
-import { createApp } from "vue";
-import { createPinia } from "pinia";
-import PrimeVue from "primevue/config";
-import App from "./App.vue";
-
-const app = createApp(App);
-app.use(createPinia());
-app.use(PrimeVue, {
-  unstyled: true,
-});
-app.mount("#app");
-```
-
-- [ ] **Step 4: Verify PrimeVue resolves — quick typecheck**
+- [ ] **Step 6: Commit**
 
 ```bash
-pnpm --filter @agenttrade/web exec vue-tsc --noEmit 2>&1 | head -20
-```
-Expected: no new errors from PrimeVue imports (unused import warning for PrimeVue is OK at this stage).
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add packages/web/package.json pnpm-lock.yaml packages/web/src/main.ts
-git commit -m "chore: add primevue dependency and configure unstyled mode"
+cd d:/douyin-distill
+git add -A
+git commit -m "chore: project scaffolding"
 ```
 
 ---
