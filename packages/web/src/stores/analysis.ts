@@ -65,8 +65,13 @@ export const useAnalysisStore = defineStore("analysis", () => {
   const report = ref<ReportData | null>(null);
   const error = ref<string | null>(null);
   const sessionId = ref<string | null>(null);
+  const targetType = ref<"stock" | "sector">("stock");
   const stepCount = ref(0);
   const totalSteps = ref(0);
+
+  function setTargetType(type: "stock" | "sector") {
+    targetType.value = type;
+  }
 
   const isRunning = computed(() => status.value === "running");
 
@@ -169,8 +174,10 @@ export const useAnalysisStore = defineStore("analysis", () => {
   }
 
   return {
-    status, target, workflow, steps, logs, report, error, sessionId, stepCount, totalSteps,
+    status, target, workflow, steps, logs, report, error, sessionId, targetType,
+    stepCount, totalSteps,
     isRunning,
-    reset, handleStart, handleStepStart, handleStepComplete, handleStepError, handleComplete, handleError,
+    reset, setTargetType,
+    handleStart, handleStepStart, handleStepComplete, handleStepError, handleComplete, handleError,
   };
 });
