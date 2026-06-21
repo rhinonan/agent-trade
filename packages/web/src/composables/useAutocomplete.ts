@@ -42,6 +42,7 @@ export function useAutocomplete(
 ) {
   const suggestions = ref<Suggestion[]>([]);
   const loading = ref(false);
+  let abortController: AbortController | null = null;
 
   /** Local filter when user types */
   function localFilter(q: string, pool: Suggestion[]): Suggestion[] {
@@ -60,17 +61,24 @@ export function useAutocomplete(
   /** Fetch from API on input (stock mode only — sector is fully local) */
   async function fetchFromAPI(keyword: string) {
     if (targetType.value !== "stock" || !keyword.trim()) return;
+    // Abort any in-flight request to avoid stale results
+    abortController?.abort();
+    abortController = new AbortController();
+    const { signal } = abortController;
     loading.value = true;
     try {
       const res = await fetch(
         `/api/reference/search?keyword=${encodeURIComponent(keyword)}`,
+        { signal },
       );
       if (!res.ok) return;
       const data = await res.json();
       if (data.results?.length) {
         suggestions.value = data.results;
       }
-    } catch {
+    } catch (err) {
+      // Silently ignore aborted requests
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // API unreachable — local results already showing
     } finally {
       loading.value = false;
