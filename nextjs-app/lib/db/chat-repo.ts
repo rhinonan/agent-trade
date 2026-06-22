@@ -27,6 +27,11 @@ export class ChatRepo {
     ).all(sessionId, since) as any[]).map(rowToMessage);
   }
 
+  getById(id: string): ChatMessage | undefined {
+    const row = this.db.prepare("SELECT * FROM chat_messages WHERE id = ?").get(id) as any;
+    return row ? rowToMessage(row) : undefined;
+  }
+
   deleteBySession(sessionId: string): void {
     this.db.prepare("DELETE FROM chat_messages WHERE session_id = ?").run(sessionId);
   }
