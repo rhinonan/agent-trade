@@ -165,6 +165,11 @@ export async function runReActLoop(options: ReActOptions): Promise<Analysis> {
     signal,
   } = options;
 
+  // Check cancellation before any expensive setup
+  if (signal?.aborted) {
+    throw new Error("ReAct loop cancelled");
+  }
+
   const tools = (agent.tools as unknown as ToolDefinition[]) ?? [];
   const systemPrompt = buildSystemPrompt(agent, context);
   const llm: BaseChatModel = createLLM(llmOptions);
@@ -178,10 +183,6 @@ export async function runReActLoop(options: ReActOptions): Promise<Analysis> {
   let step = 0;
 
   while (step < maxSteps) {
-    // Check cancellation
-    if (signal?.aborted) {
-      throw new Error("ReAct loop cancelled");
-    }
 
     step++;
 
@@ -298,7 +299,10 @@ export async function runReActLoop(options: ReActOptions): Promise<Analysis> {
 // ——— Helpers ———
 
 function formatHumanPrompt(prompt: string, context: ExecutionContext): string {
-  const parts = [prompt];
+  // Replace {target} placeholder with the actual target name/code
+  const targetStr = context.target.name ?? context.target.code;
+  const resolvedPrompt = prompt.replace(/\{target\}/g, targetStr);
+  const parts = [resolvedPrompt];
   const prevFindings = context.findings;
   if (prevFindings.length > 0) {
     parts.push("\n\n已有的分析结论（供参考）：");
