@@ -8,6 +8,7 @@ interface MessageBubbleProps {
   content: string;
   metadata?: Record<string, unknown> | null;
   timestamp: number;
+  defaultExpanded?: boolean;
 }
 
 export function MessageBubble({
@@ -16,8 +17,9 @@ export function MessageBubble({
   content,
   metadata,
   timestamp,
+  defaultExpanded = false,
 }: MessageBubbleProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const isUser = role === "user";
   const analysis = metadata?.analysis as {
     conclusion: string;

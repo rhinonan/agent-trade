@@ -22,6 +22,15 @@ export function ChatPanel({ sessionId, agents }: ChatPanelProps) {
   const isPaused = status === "PAUSED";
   const isStopped = status === "STOPPED";
 
+  // Find the index of the last agent message
+  let lastAgentMsgIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "agent") {
+      lastAgentMsgIndex = i;
+      break;
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -50,7 +59,7 @@ export function ChatPanel({ sessionId, agents }: ChatPanelProps) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
-        {messages.map(msg => {
+        {messages.map((msg, index) => {
           if (msg.role === "system") {
             return <SystemMessage key={msg.id} content={msg.content} />;
           }
@@ -62,6 +71,7 @@ export function ChatPanel({ sessionId, agents }: ChatPanelProps) {
               content={msg.content}
               metadata={msg.metadata}
               timestamp={msg.timestamp}
+              defaultExpanded={index === lastAgentMsgIndex}
             />
           );
         })}
