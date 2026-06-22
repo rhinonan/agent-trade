@@ -6,6 +6,7 @@ export const WS_EVENTS = {
   STEP_ERROR: "step:error",
   ANALYSIS_COMPLETE: "analysis:complete",
   ANALYSIS_ERROR: "analysis:error",
+  SESSION_STATUS: "session:status",
   // Client emits
   SUBSCRIBE: "subscribe",
   UNSUBSCRIBE: "unsubscribe",

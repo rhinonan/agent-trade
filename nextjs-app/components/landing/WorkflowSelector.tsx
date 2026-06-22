@@ -1,10 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
 
-interface Workflow {
-  name: string;
-  description: string;
-}
+const WORKFLOW_OPTIONS = [
+  { value: "bull-bear", label: "牛熊对抗", description: "Bull vs Bear 对抗分析" },
+  { value: "quick-scan", label: "快速扫描", description: "快速技术面+基本面扫描" },
+  { value: "layered", label: "四层深度分析", description: "四层对抗分析：感知→分析→决策→执行风控" },
+];
 
 interface WorkflowSelectorProps {
   selected: string;
@@ -12,29 +12,21 @@ interface WorkflowSelectorProps {
 }
 
 export function WorkflowSelector({ selected, onSelect }: WorkflowSelectorProps) {
-  const [workflows, setWorkflows] = useState<Workflow[]>([]);
-
-  useEffect(() => {
-    fetch("/api/workflows")
-      .then((r) => r.json())
-      .then(setWorkflows);
-  }, []);
-
   return (
     <div className="space-y-2">
       <label className="text-sm font-medium text-zinc-400">分析工作流</label>
       <div className="grid grid-cols-1 gap-2">
-        {workflows.map((wf) => (
+        {WORKFLOW_OPTIONS.map((wf) => (
           <button
-            key={wf.name}
-            onClick={() => onSelect(wf.name)}
+            key={wf.value}
+            onClick={() => onSelect(wf.value)}
             className={`text-left p-3 rounded-lg border transition-colors ${
-              selected === wf.name
+              selected === wf.value
                 ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
                 : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
             }`}
           >
-            <div className="font-medium text-zinc-100">{wf.name}</div>
+            <div className="font-medium text-zinc-100">{wf.label}</div>
             <div className="text-xs mt-1">{wf.description}</div>
           </button>
         ))}

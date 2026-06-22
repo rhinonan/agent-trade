@@ -6,7 +6,7 @@ import { WorkflowSelector } from "@/components/landing/WorkflowSelector";
 
 export default function HomePage() {
   const [code, setCode] = useState("");
-  const [workflow, setWorkflow] = useState("bull-bear");
+  const [workflow, setWorkflow] = useState("layered");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
