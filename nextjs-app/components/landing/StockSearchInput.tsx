@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useStockSearch } from "@/hooks/useStockSearch.js";
 import type { SearchResult } from "@/lib/data/types.js";
@@ -12,6 +12,20 @@ interface StockSearchInputProps {
 export function StockSearchInput({ value, onChange }: StockSearchInputProps) {
   const { results, loading, open, setOpen } = useStockSearch(value);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSelectedIndex(-1);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open, setOpen]);
 
   function handleSelect(result: SearchResult) {
     onChange(result.symbol);
@@ -37,7 +51,7 @@ export function StockSearchInput({ value, onChange }: StockSearchInputProps) {
   }
 
   return (
-    <div className="space-y-2 relative">
+    <div ref={containerRef} className="space-y-2 relative">
       <label className="text-sm font-medium text-zinc-400">股票代码</label>
       <div className="relative">
         <Input
