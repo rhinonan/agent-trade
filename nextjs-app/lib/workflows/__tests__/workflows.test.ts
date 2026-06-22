@@ -90,7 +90,7 @@ describe("WORKFLOWS registry", () => {
 
     expect(WORKFLOWS).toHaveProperty("bull-bear");
     expect(WORKFLOWS).toHaveProperty("quick-scan");
-    expect(Object.keys(WORKFLOWS)).toHaveLength(2);
+    expect(Object.keys(WORKFLOWS)).toHaveLength(3);
 
     expect(WORKFLOWS["bull-bear"].name).toBe("bull-bear");
     expect(WORKFLOWS["quick-scan"].name).toBe("quick-scan");

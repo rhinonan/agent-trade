@@ -1,6 +1,8 @@
 import type { WorkflowDAG, WorkflowStep, Finding, AnalysisTarget } from "../engine/types.js";
 import type { PendingMessage, SessionStatus } from "./types.js";
 import type { AnalyzeOptions } from "../llm/create-llm.js";
+import type { AgentRegistry } from "../engine/registry.js";
+import type { AgentMatch } from "../engine/types.js";
 import { createLLM } from "../llm/create-llm.js";
 import { parseLLMJson, parseSentiment } from "../llm/parse.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
@@ -10,10 +12,12 @@ export class Director {
   private stepIndex = 0;
   private dag: WorkflowDAG;
   private options: AnalyzeOptions;
+  private registry?: AgentRegistry;
 
-  constructor(dag: WorkflowDAG, options: AnalyzeOptions = {}) {
+  constructor(dag: WorkflowDAG, options: AnalyzeOptions = {}, registry?: AgentRegistry) {
     this.dag = dag;
     this.options = options;
+    this.registry = registry;
   }
 
   pause(): void {
@@ -26,6 +30,23 @@ export class Director {
 
   stop(): void {
     this.status = "STOPPED";
+  }
+
+  private resolveAgentId(match: AgentMatch | undefined): string {
+    if (match?.id) return match.id;
+    if (match?.capability) {
+      if (!this.registry) {
+        throw new Error(
+          `Agent match requires capability "${match.capability}" but no AgentRegistry was provided to Director`,
+        );
+      }
+      const agents = this.registry.match(match, { min: 1, max: 1 });
+      if (agents.length === 0) {
+        throw new Error(`No agent found matching capability "${match.capability}"`);
+      }
+      return agents[0].id;
+    }
+    throw new Error("Agent match requires either id or capability");
   }
 
   async advance(
@@ -126,8 +147,7 @@ export class Director {
     onMessage: (msg: PendingMessage) => Promise<void>,
   ): Promise<void> {
     const agentMatch = Array.isArray(step.agent) ? step.agent[0] : step.agent;
-    const agentId = agentMatch?.id;
-    if (!agentId) throw new Error(`Analyze step "${step.id}" requires agent.id`);
+    const agentId = this.resolveAgentId(agentMatch);
     const prompt = (step.prompt ?? "分析 {target}").replace("{target}", target.name ?? target.code);
     await this.invokeAgent(agentId, prompt, target, findings, history, onMessage, step);
   }
@@ -140,10 +160,11 @@ export class Director {
     onMessage: (msg: PendingMessage) => Promise<void>,
   ): Promise<void> {
     const agentMatches = (Array.isArray(step.agent) ? step.agent : [step.agent]).filter((x): x is NonNullable<typeof x> => x != null);
+    const agentIds = agentMatches.map((m) => this.resolveAgentId(m));
     const prompt = (step.prompt ?? "分析 {target}").replace("{target}", target.name ?? target.code);
     await Promise.all(
-      agentMatches.map((m) =>
-        this.invokeAgent(m.id!, prompt, target, findings, history, onMessage, step),
+      agentIds.map((id) =>
+        this.invokeAgent(id, prompt, target, findings, history, onMessage, step),
       ),
     );
   }
@@ -155,8 +176,7 @@ export class Director {
     onMessage: (msg: PendingMessage) => Promise<void>,
   ): Promise<void> {
     const agentMatch = Array.isArray(step.agent) ? step.agent[0] : step.agent;
-    const agentId = agentMatch?.id;
-    if (!agentId) throw new Error("Synthesize requires agent.id");
+    const agentId = this.resolveAgentId(agentMatch);
     const allFindingsText = findings
       .map(
         (f) =>
@@ -174,8 +194,7 @@ export class Director {
     onMessage: (msg: PendingMessage) => Promise<void>,
   ): Promise<void> {
     const agentMatch = Array.isArray(step.agent) ? step.agent[0] : step.agent;
-    const agentId = agentMatch?.id;
-    if (!agentId) throw new Error("Critique requires agent.id");
+    const agentId = this.resolveAgentId(agentMatch);
     const targetFindings = findings.filter((f) => f.step === step.targetStep);
     const targetText = targetFindings
       .map((f) => `[${f.agent}]: ${f.analysis.conclusion}\n理由: ${f.analysis.reasoning.join("; ")}`)
@@ -190,17 +209,17 @@ export class Director {
     findings: Finding[],
     onMessage: (msg: PendingMessage) => Promise<void>,
   ): Promise<void> {
-    const agentMatches = (Array.isArray(step.agent) ? step.agent : [step.agent]).filter(Boolean) as {
-      id: string;
-    }[];
+    const agentMatches = (Array.isArray(step.agent) ? step.agent : [step.agent]).filter(Boolean) as AgentMatch[];
+    const agentIds = agentMatches.map((m) => this.resolveAgentId(m));
     const maxRounds = step.maxRounds ?? 2;
     const debateHistory: { agent: string; argument: string }[] = [];
     for (let r = 0; r < maxRounds; r++) {
-      for (const match of agentMatches) {
+      for (let i = 0; i < agentIds.length; i++) {
+        const agentId = agentIds[i];
         const othersText = debateHistory.map((e) => `[${e.agent}]: ${e.argument}`).join("\n");
         const prompt = `辩论轮次 ${r + 1}/${maxRounds}。${step.prompt ?? "就分析结论进行辩论"}\n${othersText ? `\n对方观点：\n${othersText}` : ""}`;
-        const result = await this.invokeAgent(match.id, prompt, target, findings, [], onMessage, step);
-        debateHistory.push({ agent: match.id, argument: result.conclusion });
+        const result = await this.invokeAgent(agentId, prompt, target, findings, [], onMessage, step);
+        debateHistory.push({ agent: agentId, argument: result.conclusion });
       }
     }
   }

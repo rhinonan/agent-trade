@@ -51,7 +51,7 @@ export class SessionManager {
       status: "RUNNING", stepIndex: 0, findings: [], createdAt: Date.now(),
     };
 
-    const director = new Director(dag, options);
+    const director = new Director(dag, options, registry);
     this.sessions.set(id, { session, director, dag, registry, options, _advancing: false });
     return session;
   }

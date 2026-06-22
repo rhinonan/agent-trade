@@ -77,24 +77,22 @@ describe("HomePage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("bull-bear")).toBeDefined();
+      expect(screen.getByText("牛熊对抗")).toBeDefined();
     });
 
-    expect(screen.getByText("quick-scan")).toBeDefined();
-    expect(screen.getByText("牛熊对抗")).toBeDefined();
     expect(screen.getByText("快速扫描")).toBeDefined();
-    expect(mockFetch).toHaveBeenCalledWith("/api/workflows");
+    expect(screen.getByText("四层深度分析")).toBeDefined();
   });
 
   it("highlights the selected workflow", async () => {
     renderPage();
 
     await waitFor(() => {
-      expect(screen.getByText("bull-bear")).toBeDefined();
+      expect(screen.getByText("牛熊对抗")).toBeDefined();
     });
 
     // Click on quick-scan to select it
-    const quickScanButton = screen.getByText("quick-scan").closest("button");
+    const quickScanButton = screen.getByText("快速扫描").closest("button");
     expect(quickScanButton).toBeDefined();
     fireEvent.click(quickScanButton!);
 
@@ -139,7 +137,7 @@ describe("HomePage", () => {
 
     // Wait for workflows to load
     await waitFor(() => {
-      expect(screen.getByText("bull-bear")).toBeDefined();
+      expect(screen.getByText("牛熊对抗")).toBeDefined();
     });
 
     // Click start
@@ -150,7 +148,7 @@ describe("HomePage", () => {
       expect(mockFetch).toHaveBeenCalledWith("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: "600519", workflow: "bull-bear" }),
+        body: JSON.stringify({ code: "600519", workflow: "layered" }),
       });
       expect(mockPush).toHaveBeenCalledWith("/session/test-session-123");
     });
