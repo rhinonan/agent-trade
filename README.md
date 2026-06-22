@@ -1,6 +1,6 @@
 # AgentTrade
 
-多 Agent 对抗行情分析框架 —— 可自由扩展的分析 Agent、可自定义的对抗流程、内置 A 股特色分析能力。
+多 Agent 对抗行情分析框架 —— 基于 Next.js 的全栈 Web 应用，支持自定义分析 Agent、结构化对抗流程、A 股特色分析。
 
 ## 设计理念
 
@@ -16,19 +16,36 @@
 ## 架构
 
 ```
-┌──────────────────────────────────────────┐
-│              CLI (analyze 命令)            │
-├──────────────────────────────────────────┤
-│         工作流引擎 (对抗原语 + 状态机)        │
-│   analyze / critique / debate / vote /    │
-│   panel / synthesize / parallel           │
-├──────────────────────────────────────────┤
-│       Agent 注册中心 (可扩展插件)            │
-│   技术面 / 财报 / 裁判 / ... (自定义)        │
-├──────────────────┬───────────────────────┤
-│  LangChain.js    │  Python 数据微服务      │
-│  (LLM 抽象)      │  (akshare, :9500)     │
-└──────────────────┴───────────────────────┘
+┌──────────────────────────────────────────────┐
+│               Next.js 全栈应用                 │
+│                                              │
+│  app/              页面 (App Router)           │
+│  ├── page.tsx      首页 — 输入股票 + 选择工作流  │
+│  ├── analyze/[id]  分析页 — SSR + WebSocket    │
+│  └── api/          REST API                   │
+│                                              │
+│  components/       React 组件 (shadcn/ui)      │
+│  hooks/            WebSocket 实时 Hook         │
+│                                              │
+│  lib/                                        │
+│  ├── engine/       工作流引擎 + Agent 注册中心   │
+│  ├── agents/       内置 Agent (技术面/财报/裁判) │
+│  ├── workflows/    工作流定义 (Bull-Bear 等)     │
+│  ├── data/         Python 数据服务客户端         │
+│  ├── llm/          LLM 抽象层                  │
+│  ├── socket/       Socket.IO 服务端            │
+│  └── db/           SQLite 持久化               │
+│                                              │
+│  server.mjs        Custom Server + Socket.IO   │
+└──────────────┬───────────────────────────────┘
+               │ HTTP REST
+               ▼
+┌──────────────────────────────────────────────┐
+│   d2-data (独立仓库 — Python FastAPI)          │
+│                                              │
+│   纯数据层，无 Agent 逻辑                       │
+│   FastAPI + akshare → 行情 / 财报 / 板块       │
+└──────────────────────────────────────────────┘
 ```
 
 ## 快速开始
@@ -36,8 +53,8 @@
 ### 1. 安装
 
 ```bash
+cd nextjs-app
 pnpm install
-pnpm build
 ```
 
 ### 2. 配置
@@ -47,12 +64,17 @@ cp .env.example .env
 # 编辑 .env 填入 API Key
 ```
 
-支持的 LLM Provider:
-- **deepseek** (默认) — 设置 `OPENAI_API_KEY`
-- **openai** — 设置 `OPENAI_API_KEY`
-- **anthropic** — 设置 `ANTHROPIC_API_KEY`
+支持的 LLM Provider：
+
+| Provider | 环境变量 | 说明 |
+|----------|---------|------|
+| **deepseek** (默认) | `OPENAI_API_KEY` | baseURL `https://api.deepseek.com/v1` |
+| **openai** | `OPENAI_API_KEY` | 默认模型 `gpt-4o` |
+| **anthropic** | `ANTHROPIC_API_KEY` | 默认模型 `claude-sonnet-4-6` |
 
 ### 3. 启动数据服务
+
+Python 数据服务已独立为单独仓库 `d2-data`，先启动它：
 
 ```bash
 cd d2-data
@@ -61,18 +83,17 @@ python main.py
 # → http://localhost:9500
 ```
 
-### 4. 运行分析
+### 4. 启动 Web 应用
 
 ```bash
-# 个股多空对抗
-pnpm analyze --code 600519 --workflow bull-bear
-
-# 板块快速扫描
-pnpm analyze --sector CPO --workflow quick-scan
-
-# 切换模型
-pnpm analyze --code 600519 --provider openai --model gpt-4o
+cd nextjs-app
+pnpm dev
+# → http://localhost:3000
 ```
+
+### 5. 运行分析
+
+在浏览器中打开 `http://localhost:3000`，输入股票代码，选择工作流，点击"开始分析"即可。
 
 ## 工作流
 
@@ -98,18 +119,17 @@ Step 3: [裁判Agent] → 简要研判
 ### 写一个新 Agent
 
 ```typescript
-import type { BaseAgent, AgentPersona, Analysis, ExecutionContext } from "@agenttrade/core";
+import type { BaseAgent, AgentPersona, Analysis, ExecutionContext } from "@/lib/engine";
 
 class MyAgent implements BaseAgent {
   id = "my-custom-agent";
   name = "我的分析Agent";
   capabilities = ["custom", "sentiment"];
   personality: AgentPersona = { stance: "neutral" };
-  tools = [/* LangChain tools */];
+  tools = [];
   canCritique = true;
 
   async analyze(context: ExecutionContext): Promise<Analysis> {
-    // 你的分析逻辑
     return {
       conclusion: "...",
       confidence: 0.8,
@@ -120,12 +140,12 @@ class MyAgent implements BaseAgent {
 }
 ```
 
-注册到 `packages/agents/src/` 下，在 CLI 中实例化即可使用。
+注册到 `lib/agents/index.ts` 的 `registerBuiltinAgents()` 中即可使用。
 
 ### 写一个新工作流
 
 ```typescript
-import { defineWorkflow, analyze, debate, synthesize } from "@agenttrade/core";
+import { defineWorkflow, analyze, debate, synthesize } from "@/lib/engine";
 
 export const myWorkflow = defineWorkflow({ name: "my-flow" })
   .step("bull", analyze({ agent: { capability: "bullish" }, prompt: "..." }))
@@ -135,23 +155,59 @@ export const myWorkflow = defineWorkflow({ name: "my-flow" })
   .build();
 ```
 
+注册到 `lib/workflows/index.ts` 的 `WORKFLOWS` 中，API 会自动发现。
+
 ## 项目结构
 
 ```
 agenttrade/
-├── packages/
-│   ├── core/            # Agent 框架 + 工作流引擎
-│   ├── agents/           # 内置 Agent（技术面、财报、裁判）
-│   ├── data-client/      # Python 数据服务客户端（独立 npm 包）
-│   └── cli/              # CLI 入口 + 工作流定义
-├── d2-data/              # Python 数据微服务
-├── docs/superpowers/     # 设计文档 + 实施计划
-└── .env.example
+├── nextjs-app/
+│   ├── app/                     Next.js App Router
+│   │   ├── layout.tsx           根布局
+│   │   ├── page.tsx             首页 (搜索 + 选择工作流)
+│   │   ├── analyze/[id]/        分析页面 (SSR + WebSocket)
+│   │   └── api/                 REST API
+│   │       ├── analyze/         启动分析 / 获取结果
+│   │       └── workflows/       工作流列表
+│   ├── components/
+│   │   ├── ui/                  shadcn/ui 基础组件
+│   │   ├── landing/             首页组件
+│   │   └── analysis/            分析页组件
+│   ├── hooks/                   React Hooks (WebSocket)
+│   ├── lib/
+│   │   ├── engine/              工作流引擎 (类型/注册/调度/原语/DSL)
+│   │   ├── agents/              内置 Agent 实现
+│   │   ├── workflows/           工作流定义
+│   │   ├── data/                Python 服务 HTTP 客户端
+│   │   ├── llm/                 LLM 抽象层
+│   │   ├── socket/              Socket.IO 服务端
+│   │   └── db/                  SQLite 持久化
+│   ├── server.mjs               Custom Server
+│   ├── package.json
+│   └── tsconfig.json
+├── docs/
+│   └── superpowers/
+│       ├── specs/               设计文档
+│       └── plans/               实施计划
+├── .env.example
+└── LICENSE
 ```
+
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 框架 | Next.js 15 (App Router) |
+| 前端 | React 18 + shadcn/ui + Tailwind CSS 4 |
+| 实时通信 | Socket.IO |
+| LLM 抽象 | LangChain.js |
+| 数据库 | SQLite (better-sqlite3) |
+| 测试 | Vitest + @testing-library/react |
+| 数据服务 | Python FastAPI + akshare (独立仓库) |
 
 ## 开源协议
 
-核心框架（`packages/core`, `packages/agents`, `packages/data-client`, `packages/cli`）采用 **GNU AGPL 3.0** 协议。
+本项目采用 **GNU Affero General Public License v3.0 (AGPL-3.0)** 协议。
 
 这意味着：
 - 你可以自由使用、修改和分发代码
