@@ -1,4 +1,5 @@
 import type { StructuredTool } from "@langchain/core/tools";
+import type { ToolDefinition } from "../tools/types.js";
 
 // ——— Analysis Target ———
 export type TargetType = "stock" | "sector" | "index";
@@ -33,7 +34,7 @@ export interface BaseAgent {
   capabilities: Capability[];
   layer?: string; // "perception" | "analysis" | "decision" | "execution"
   personality: AgentPersona;
-  tools: StructuredTool[];
+  tools: (StructuredTool | ToolDefinition)[];
 
   /** Optional override: a static system prompt string, or a function that returns one given context. */
   systemPrompt?: string | ((context: ExecutionContext) => string);

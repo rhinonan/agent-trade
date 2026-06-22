@@ -1,13 +1,17 @@
 import type { AgentPersona, ExecutionContext, Analysis } from "../engine/types.js";
 import type { StructuredTool } from "@langchain/core/tools";
 import { BaseAgent } from "../engine/types.js";
+import { klineTool, macdTool, rsiTool, maTool } from "../tools/index.js";
+import type { ToolDefinition } from "../tools/types.js";
+// Import prompt module to trigger registration side-effect
+import "../prompt/technical.js";
 
 export class TechnicalAnalystAgent implements BaseAgent {
   id: string;
   name = "技术面分析师";
   capabilities: string[] = [];
   personality: AgentPersona;
-  tools: StructuredTool[] = [];
+  tools: (StructuredTool | ToolDefinition)[] = [klineTool, macdTool, rsiTool, maTool];
   canCritique = true;
   canDebate = true;
   layer?: string = "analysis";
