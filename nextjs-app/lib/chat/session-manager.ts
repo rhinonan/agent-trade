@@ -8,6 +8,7 @@ import type { WorkflowDAG, AnalysisTarget, Finding } from "../engine/types.js";
 import type { AnalyzeOptions } from "../llm/create-llm.js";
 import { createLLM } from "../llm/create-llm.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { DataClient } from "../data/client.js";
 
 let _instance: SessionManager | undefined;
 
@@ -15,6 +16,8 @@ export function getSessionManager(repo?: ChatRepo, sessionRepo?: SessionRepo): S
   if (!_instance) {
     if (!repo) throw new Error("SessionManager not initialized. Pass ChatRepo on first call.");
     _instance = new SessionManager(repo, sessionRepo);
+  } else if (sessionRepo) {
+    _instance.setSessionRepo(sessionRepo);
   }
   return _instance;
 }
@@ -33,7 +36,19 @@ export class SessionManager {
     _advancing: boolean;
   }>();
 
-  constructor(private repo: ChatRepo, private sessionRepo?: SessionRepo) {}
+  private _sessionRepo?: SessionRepo;
+
+  constructor(private repo: ChatRepo, sessionRepo?: SessionRepo) {
+    this._sessionRepo = sessionRepo;
+  }
+
+  setSessionRepo(sessionRepo: SessionRepo): void {
+    this._sessionRepo = sessionRepo;
+  }
+
+  private get sessionRepo(): SessionRepo | undefined {
+    return this._sessionRepo;
+  }
 
   createSession(
     id: string,
@@ -61,6 +76,14 @@ export class SessionManager {
         targetType: target.type, workflowName: dag.name,
         status: "RUNNING", createdAt: Date.now(),
       });
+
+      // Fire async lookup for stock name
+      if (target.type === "stock") {
+        const dataClient = new DataClient({ baseUrl: input.dataServiceUrl ?? "http://localhost:9500" });
+        dataClient.reference.get(target.code).then(info => {
+          this.sessionRepo?.updateName(id, info.name);
+        }).catch(() => {});
+      }
     }
 
     return session;

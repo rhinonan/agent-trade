@@ -36,6 +36,10 @@ export class SessionRepo {
     this.db.prepare("UPDATE sessions SET status = ? WHERE id = ?").run(status, id);
   }
 
+  updateName(id: string, name: string): void {
+    this.db.prepare("UPDATE sessions SET target_name = ? WHERE id = ?").run(name, id);
+  }
+
   deleteById(id: string): void {
     this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
   }
