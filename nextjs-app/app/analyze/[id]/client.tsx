@@ -16,7 +16,7 @@ export function AnalysisLiveClient({ sessionId }: { sessionId: string }) {
       {judgeFinding && (
         <ConclusionCard
           conclusion={judgeFinding.conclusion}
-          reasoning={[]}
+          reasoning={judgeFinding.reasoning ?? []}
           sentiment={judgeFinding.sentiment}
           confidence={judgeFinding.confidence}
         />

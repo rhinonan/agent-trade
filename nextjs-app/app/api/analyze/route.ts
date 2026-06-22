@@ -18,6 +18,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Must specify code, sector, or index" }, { status: 400 });
   }
 
+  const VALID_PROVIDERS = new Set(["deepseek", "openai", "anthropic"]);
+  if (provider && !VALID_PROVIDERS.has(provider)) {
+    return NextResponse.json({ error: `Invalid provider: ${provider}. Must be one of: deepseek, openai, anthropic` }, { status: 400 });
+  }
+
   const sessionId = randomUUID();
 
   // Save to DB
@@ -87,8 +92,11 @@ async function runAnalysis(
       const stepFindings = ctx.findings
         .filter((f: Finding) => f.step === stepId || f.step.startsWith(stepId))
         .map((f: Finding) => ({
-          agent: f.agent, conclusion: f.analysis.conclusion,
-          sentiment: f.analysis.sentiment, confidence: f.analysis.confidence,
+          agent: f.agent,
+          conclusion: f.analysis.conclusion,
+          reasoning: f.analysis.reasoning,
+          sentiment: f.analysis.sentiment,
+          confidence: f.analysis.confidence,
         }));
       ns.to(sessionId).emit(WS_EVENTS.STEP_COMPLETE, { stepId, findings: stepFindings });
     },
@@ -109,7 +117,15 @@ async function runAnalysis(
     context: {
       target: result.target,
       workflowName: result.workflowName,
-      findings: result.findings,
+      findings: result.findings.map((f: Finding) => ({
+        step: f.step,
+        agent: f.agent,
+        conclusion: f.analysis.conclusion,
+        reasoning: f.analysis.reasoning,
+        sentiment: f.analysis.sentiment,
+        confidence: f.analysis.confidence,
+        timestamp: f.timestamp,
+      })),
       debateRounds: result.debateRounds,
     },
   });

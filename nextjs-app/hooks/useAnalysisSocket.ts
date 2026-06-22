@@ -6,6 +6,7 @@ interface Finding {
   step: string;
   agent: string;
   conclusion: string;
+  reasoning?: string[];
   sentiment: string;
   confidence: number;
   timestamp: number;
@@ -86,6 +87,7 @@ export function useAnalysisSocket(sessionId: string) {
             step: payload.stepId,
             agent: f.agent,
             conclusion: f.conclusion,
+            reasoning: f.reasoning,
             sentiment: f.sentiment,
             confidence: f.confidence,
             timestamp: Date.now(),

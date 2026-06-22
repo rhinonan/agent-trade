@@ -36,11 +36,17 @@ export default async function AnalysisPage({
         status={record.status}
       />
       <LiveDebatePanel findings={context.findings ?? []} />
-      {context.findings?.find((f: any) => f.agent === "judge") && (
-        <ConclusionCard
-          {...context.findings.find((f: any) => f.agent === "judge").analysis}
-        />
-      )}
+      {(() => {
+        const judgeFinding = context.findings?.find((f: any) => f.agent === "judge");
+        return judgeFinding ? (
+          <ConclusionCard
+            conclusion={judgeFinding.analysis.conclusion}
+            reasoning={judgeFinding.analysis.reasoning}
+            sentiment={judgeFinding.analysis.sentiment}
+            confidence={judgeFinding.analysis.confidence}
+          />
+        ) : null;
+      })()}
       {isRunning && <AnalysisLiveClient sessionId={id} />}
     </main>
   );

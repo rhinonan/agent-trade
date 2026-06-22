@@ -87,6 +87,7 @@ describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
         step: "final",
         agent: "judge",
         conclusion: "Overall neutral",
+        reasoning: ["Market is uncertain", "Conflicting signals from bulls and bears"],
         sentiment: "neutral",
         confidence: 0.5,
         timestamp: Date.now(),

@@ -6,6 +6,12 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+.next/
+
+# SQLite databases
+data/*.db
+data/*.db-shm
+data/*.db-wal
 
 # Claude local config
 .claude/
