@@ -152,7 +152,7 @@ describe("HomePage", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: "600519", workflow: "bull-bear" }),
       });
-      expect(mockPush).toHaveBeenCalledWith("/analyze/test-session-123");
+      expect(mockPush).toHaveBeenCalledWith("/session/test-session-123");
     });
   });
 

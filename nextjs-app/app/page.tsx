@@ -19,7 +19,7 @@ export default function HomePage() {
       body: JSON.stringify({ code: code.trim(), workflow }),
     });
     const { sessionId } = await res.json();
-    router.push(`/analyze/${sessionId}`);
+    router.push(`/session/${sessionId}`);
   }
 
   return (
