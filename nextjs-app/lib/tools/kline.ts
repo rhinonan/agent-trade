@@ -3,7 +3,7 @@ import type { ToolDefinition, ToolContext } from "./types.js";
 export const klineTool: ToolDefinition = {
   name: "get-kline",
   description:
-    "获取股票日K线数据，返回开盘价、收盘价、最高价、最低价、成交量。适用于分析趋势、形态和支撑阻力位。",
+    "获取股票K线数据，返回开盘价、收盘价、最高价、最低价、成交量。适用于分析趋势、形态和支撑阻力位。",
   parameters: {
     type: "object",
     properties: {

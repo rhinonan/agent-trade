@@ -6,11 +6,7 @@ export const macdTool: ToolDefinition = {
     "计算MACD指标，返回DIF、DEA和柱状值(MACD histogram)。用于判断趋势方向、金叉死叉信号和背离。",
   parameters: {
     type: "object",
-    properties: {
-      fast: { type: "number", description: "快线EMA周期，默认12", default: 12 },
-      slow: { type: "number", description: "慢线EMA周期，默认26", default: 26 },
-      signal: { type: "number", description: "信号线EMA周期，默认9", default: 9 },
-    },
+    properties: {},
     required: [],
   },
   async execute(params, ctx) {
@@ -111,20 +107,21 @@ export const maTool: ToolDefinition = {
       latest[period] = arr.length > 0 ? arr[arr.length - 1] : null;
     }
 
-    // Determine alignment
+    // Determine alignment by checking monotonicity
     const periods = ["5", "10", "20", "60"];
     const alignmentValues = periods.map((p) => latest[p]).filter((v): v is number => v != null);
     let alignment = "unknown";
     if (alignmentValues.length >= 3) {
-      const sorted = [...alignmentValues].sort((a, b) => b - a);
-      if (JSON.stringify(alignmentValues) === JSON.stringify(sorted)) {
-        alignment = "bullish_alignment";
-      } else if (
-        JSON.stringify(alignmentValues) ===
-        JSON.stringify([...alignmentValues].sort((a, b) => a - b))
-      ) {
-        alignment = "bearish_alignment";
-      }
+      // Bullish alignment: short-term MA > long-term MA (monotonically decreasing)
+      const bullish = alignmentValues.every(
+        (v, i) => i === 0 || v < alignmentValues[i - 1],
+      );
+      // Bearish alignment: short-term MA < long-term MA (monotonically increasing)
+      const bearish = alignmentValues.every(
+        (v, i) => i === 0 || v > alignmentValues[i - 1],
+      );
+      if (bullish) alignment = "bullish_alignment";
+      else if (bearish) alignment = "bearish_alignment";
     }
 
     return JSON.stringify({

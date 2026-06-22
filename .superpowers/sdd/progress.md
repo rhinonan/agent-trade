@@ -133,3 +133,8 @@ Task 10: complete (commits 1f0279f..00a07b7, mechanical)
 Task 11: complete (commits 00a07b7..9677280, review clean)
 
 Final review fixes: complete (commits 9677280..b75fd76 — target_name, singleton fix, defaultExpanded, AbortController, click-outside)
+Task 1: complete (commits 0c598a5..ac17261, review clean)
+Task 2: complete (commits ac17261..0f6b150, review clean)
+Task 3: complete (commits 0f6b150..7ce570e, review clean, minor prefix-ordering note)
+Task 4: complete (commits 7ce570e..8ccec4a, review clean, low-severity notes only)
+Task 5: complete (commits 8ccec4a..c289161, review PASS, minor abort-check note)

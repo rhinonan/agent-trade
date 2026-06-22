@@ -65,13 +65,57 @@ describe("klineTool", () => {
 });
 
 describe("macdTool", () => {
-  it("returns MACD data with signal detection", async () => {
+  it("returns MACD data with neutral signal when DIF stays above DEA", async () => {
     const ctx = mockCtx();
     const result = await macdTool.execute({}, ctx);
     const parsed = JSON.parse(result);
     expect(parsed.symbol).toBe("600519");
     expect(parsed.latest.dif).toBe(6.1);
-    expect(parsed.signal).toBeDefined();
+    expect(parsed.signal).toBe("neutral");
+  });
+
+  it("detects golden_cross when DIF crosses above DEA", async () => {
+    const ctx = mockCtx({
+      dataClient: {
+        kline: {
+          get: vi.fn(),
+          indicators: vi.fn().mockResolvedValue({
+            symbol: "600519",
+            indicators: {
+              macd: [
+                { index: 0, dif: 4.0, dea: 4.5, histogram: -0.5 },
+                { index: 1, dif: 5.0, dea: 4.8, histogram: 0.2 },
+              ],
+            },
+          }),
+        },
+      } as unknown as DataClient,
+    });
+    const result = await macdTool.execute({}, ctx);
+    const parsed = JSON.parse(result);
+    expect(parsed.signal).toBe("golden_cross");
+  });
+
+  it("detects death_cross when DIF crosses below DEA", async () => {
+    const ctx = mockCtx({
+      dataClient: {
+        kline: {
+          get: vi.fn(),
+          indicators: vi.fn().mockResolvedValue({
+            symbol: "600519",
+            indicators: {
+              macd: [
+                { index: 0, dif: 5.5, dea: 5.0, histogram: 0.5 },
+                { index: 1, dif: 4.8, dea: 5.2, histogram: -0.4 },
+              ],
+            },
+          }),
+        },
+      } as unknown as DataClient,
+    });
+    const result = await macdTool.execute({}, ctx);
+    const parsed = JSON.parse(result);
+    expect(parsed.signal).toBe("death_cross");
   });
 });
 
@@ -91,6 +135,7 @@ describe("maTool", () => {
     const result = await maTool.execute({}, ctx);
     const parsed = JSON.parse(result);
     expect(parsed.latest).toBeDefined();
-    expect(parsed.alignment).toBeDefined();
+    // MA5=1705 > MA10=1695 > MA20=1685 => bullish alignment
+    expect(parsed.alignment).toBe("bullish_alignment");
   });
 });
