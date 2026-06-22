@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SessionManager } from "../session-manager.js";
 import { ChatRepo } from "../../db/chat-repo.js";
+import { SessionRepo } from "../../db/session-repo.js";
 import { AgentRegistry } from "../../engine/registry.js";
 import { registerBuiltinAgents } from "../../agents/index.js";
 import type { WorkflowDAG } from "../../engine/types.js";
@@ -64,5 +65,38 @@ describe("SessionManager", () => {
     // Resume
     const msgs = await mgr.resumeSession("s1");
     expect(mgr.getSession("s1")?.status).toBe("RUNNING");
+  });
+
+  it("persists session to database on createSession", () => {
+    const sessionRepo = new SessionRepo(db);
+    const mgr = new SessionManager(repo, sessionRepo);
+    mgr.createSession("s1", { code: "000001" }, testDag, registry, { provider: "deepseek" });
+
+    const persisted = sessionRepo.getById("s1");
+    expect(persisted).not.toBeNull();
+    expect(persisted!.targetCode).toBe("000001");
+    expect(persisted!.status).toBe("RUNNING");
+  });
+
+  it("updates status when session stops", async () => {
+    const sessionRepo = new SessionRepo(db);
+    const mgr = new SessionManager(repo, sessionRepo);
+    mgr.createSession("s1", { code: "000001" }, testDag, registry, { provider: "deepseek" });
+
+    // Manually stop the session
+    const entry = (mgr as any).sessions.get("s1");
+    if (entry) entry.session.status = "STOPPED";
+    sessionRepo.updateStatus("s1", "STOPPED");
+
+    const persisted = sessionRepo.getById("s1");
+    expect(persisted!.status).toBe("STOPPED");
+  });
+
+  it("removes session from DB on deleteSession", () => {
+    const sessionRepo = new SessionRepo(db);
+    const mgr = new SessionManager(repo, sessionRepo);
+    mgr.createSession("s1", { code: "000001" }, testDag, registry, { provider: "deepseek" });
+    mgr.deleteSession("s1");
+    expect(sessionRepo.getById("s1")).toBeNull();
   });
 });

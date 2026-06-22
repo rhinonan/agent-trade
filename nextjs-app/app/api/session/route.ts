@@ -5,6 +5,7 @@ import { AgentRegistry } from "@/lib/engine/registry.js";
 import { registerBuiltinAgents } from "@/lib/agents/index.js";
 import { getDb } from "@/lib/db/client.js";
 import { ChatRepo } from "@/lib/db/chat-repo.js";
+import { SessionRepo } from "@/lib/db/session-repo.js";
 import { getSessionManager } from "@/lib/chat/session-manager.js";
 import { setDefaultLLMProvider } from "@/lib/llm/create-llm.js";
 
@@ -24,7 +25,8 @@ export async function POST(req: NextRequest) {
   const sessionId = randomUUID();
   const db = getDb();
   const repo = new ChatRepo(db);
-  const mgr = getSessionManager(repo);
+  const sessionRepo = new SessionRepo(db);
+  const mgr = getSessionManager(repo, sessionRepo);
 
   if (provider) setDefaultLLMProvider(provider as any);
 

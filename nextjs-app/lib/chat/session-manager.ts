@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { ChatMessage, ChatSession, CreateSessionInput, SessionStatus } from "./types.js";
 import { Director } from "./director.js";
 import type { ChatRepo } from "../db/chat-repo.js";
+import type { SessionRepo } from "../db/session-repo.js";
 import type { AgentRegistry } from "../engine/registry.js";
 import type { WorkflowDAG, AnalysisTarget, Finding } from "../engine/types.js";
 import type { AnalyzeOptions } from "../llm/create-llm.js";
@@ -10,10 +11,10 @@ import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 let _instance: SessionManager | undefined;
 
-export function getSessionManager(repo?: ChatRepo): SessionManager {
+export function getSessionManager(repo?: ChatRepo, sessionRepo?: SessionRepo): SessionManager {
   if (!_instance) {
     if (!repo) throw new Error("SessionManager not initialized. Pass ChatRepo on first call.");
-    _instance = new SessionManager(repo);
+    _instance = new SessionManager(repo, sessionRepo);
   }
   return _instance;
 }
@@ -32,7 +33,7 @@ export class SessionManager {
     _advancing: boolean;
   }>();
 
-  constructor(private repo: ChatRepo) {}
+  constructor(private repo: ChatRepo, private sessionRepo?: SessionRepo) {}
 
   createSession(
     id: string,
@@ -53,6 +54,15 @@ export class SessionManager {
 
     const director = new Director(dag, options, registry);
     this.sessions.set(id, { session, director, dag, registry, options, _advancing: false });
+
+    if (this.sessionRepo) {
+      this.sessionRepo.insert({
+        id, targetCode: target.code, targetName: null,
+        targetType: target.type, workflowName: dag.name,
+        status: "RUNNING", createdAt: Date.now(),
+      });
+    }
+
     return session;
   }
 
@@ -61,6 +71,9 @@ export class SessionManager {
   }
 
   deleteSession(id: string): void {
+    if (this.sessionRepo) {
+      this.sessionRepo.deleteById(id);
+    }
     this.sessions.delete(id);
   }
 
@@ -194,7 +207,11 @@ export class SessionManager {
             });
           },
         );
-        if (!result.hasMore) { session.status = "STOPPED"; break; }
+        if (!result.hasMore) {
+          session.status = "STOPPED";
+          if (this.sessionRepo) this.sessionRepo.updateStatus(sessionId, "STOPPED");
+          break;
+        }
         // Avoid tight loop — yield to the event loop
         await new Promise((r) => setTimeout(r, 0));
       }
@@ -205,7 +222,11 @@ export class SessionManager {
     loop().catch((err) => {
       console.error(`Session ${sessionId} auto-advance failed:`, err);
       const e = this.sessions.get(sessionId);
-      if (e) { e.session.status = "STOPPED"; e._advancing = false; }
+      if (e) {
+        e.session.status = "STOPPED";
+        if (this.sessionRepo) this.sessionRepo.updateStatus(sessionId, "STOPPED");
+        e._advancing = false;
+      }
     });
   }
 }
