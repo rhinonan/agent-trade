@@ -39,7 +39,7 @@ describe("Bull-Bear Workflow with ReAct", () => {
       id: "technical-bull",
       personality: { stance: "bullish" },
     });
-    const judge = new JudgeAgent({ id: "judge", personality: { stance: "neutral" } } as any);
+    const judge = new JudgeAgent();
 
     registry.register(bullTech);
     registry.register(judge);
