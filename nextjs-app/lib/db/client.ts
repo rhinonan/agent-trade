@@ -41,5 +41,16 @@ export function createTables(db: Database.Database): void {
       timestamp INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(session_id, timestamp);
+
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      target_code TEXT NOT NULL,
+      target_name TEXT,
+      target_type TEXT NOT NULL DEFAULT 'stock',
+      workflow_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'RUNNING',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);
   `);
 }
