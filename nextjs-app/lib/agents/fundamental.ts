@@ -5,7 +5,7 @@ import { BaseAgent } from "../engine/types.js";
 export class FinancialReportAgent implements BaseAgent {
   id: string;
   name = "财报分析师";
-  capabilities = ["fundamental"];
+  capabilities: string[] = [];
   personality: AgentPersona;
   tools: StructuredTool[] = [];
   canCritique = true;
@@ -14,6 +14,8 @@ export class FinancialReportAgent implements BaseAgent {
   constructor(config: { id: string; personality: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality;
+    // Include stance in capabilities so workflow matching works
+    this.capabilities = ["fundamental", config.personality.stance];
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {

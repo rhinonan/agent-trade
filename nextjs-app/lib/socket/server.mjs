@@ -1,7 +1,7 @@
 import { Server } from "socket.io";
 import { WS_EVENTS } from "./events.mjs";
 
-let _io = null;
+const GLOBAL_KEY = Symbol.for("agenttrade.socketio");
 
 export function createSocketServer(httpServer) {
   const io = new Server(httpServer, {
@@ -29,14 +29,16 @@ export function createSocketServer(httpServer) {
     });
   });
 
+  globalThis[GLOBAL_KEY] = io;
   return io;
 }
 
 export function getSocketIO() {
-  if (!_io) throw new Error("Socket.IO not initialized");
-  return _io;
+  const io = globalThis[GLOBAL_KEY];
+  if (!io) throw new Error("Socket.IO not initialized");
+  return io;
 }
 
 export function setSocketIO(io) {
-  _io = io;
+  globalThis[GLOBAL_KEY] = io;
 }

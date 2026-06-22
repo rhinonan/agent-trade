@@ -2,7 +2,9 @@ import type { Server as HttpServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import { WS_EVENTS } from "./events.js";
 
-let _io: Server | null = null;
+// Use globalThis so the Socket.IO instance is shared between the custom server
+// (server.mjs / Node.js context) and webpack-compiled API route handlers.
+const GLOBAL_KEY = Symbol.for("agenttrade.socketio");
 
 export function createSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
@@ -30,14 +32,17 @@ export function createSocketServer(httpServer: HttpServer): Server {
     });
   });
 
+  // Store on globalThis so both server.mjs and webpack-compiled routes see the same instance
+  (globalThis as any)[GLOBAL_KEY] = io;
   return io;
 }
 
 export function getSocketIO(): Server {
-  if (!_io) throw new Error("Socket.IO not initialized");
-  return _io;
+  const io = (globalThis as any)[GLOBAL_KEY] as Server | undefined;
+  if (!io) throw new Error("Socket.IO not initialized");
+  return io;
 }
 
 export function setSocketIO(io: Server): void {
-  _io = io;
+  (globalThis as any)[GLOBAL_KEY] = io;
 }

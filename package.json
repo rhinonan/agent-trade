@@ -1,5 +1,5 @@
 {
-  "name": "agenttrade",
+  "name": "agenttrade-monorepo",
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "pnpm": {
@@ -8,13 +8,8 @@
     }
   },
   "scripts": {
-    "build": "pnpm -r build",
-    "build:server": "pnpm --filter @agenttrade/server build",
-    "build:web": "pnpm --filter @agenttrade/web build",
-    "test": "pnpm -r test",
-    "lint": "pnpm -r lint",
-    "analyze": "node packages/cli/dist/index.js analyze",
-    "dev:server": "pnpm --filter @agenttrade/server dev",
-    "dev:web": "pnpm --filter @agenttrade/web dev"
+    "dev": "cd nextjs-app && pnpm dev",
+    "build": "cd nextjs-app && pnpm build",
+    "test": "cd nextjs-app && pnpm test"
   }
 }
