@@ -1,5 +1,5 @@
 import type { AgentRegistry } from "../registry.js";
-import type { ExecutionContext, WorkflowStep } from "../types.js";
+import type { AgentMatch, ExecutionContext, WorkflowStep } from "../types.js";
 import { executeAnalyze } from "./analyze.js";
 import type { AnalyzeOptions } from "../../llm/create-llm.js";
 
@@ -9,7 +9,7 @@ export async function executePanel(
   context: ExecutionContext,
   options: AnalyzeOptions = {},
 ): Promise<ExecutionContext> {
-  const match = step.match ?? (step.agent as any);
+  const match: AgentMatch | undefined = step.match ?? (Array.isArray(step.agent) ? step.agent[0] : step.agent);
   if (!match) throw new Error(`Panel step "${step.id}" requires a match`);
 
   const count = step.count ?? "all";

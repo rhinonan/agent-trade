@@ -52,6 +52,14 @@ export async function executeDebate(
         currentCtx = addFinding(currentCtx, `${step.id}_r${r}`, agent.id, analysis);
         entries.push({ agent: agent.id, argument: analysis.conclusion });
       } catch {
+        const fallback: Analysis = {
+          conclusion: text.slice(0, 200),
+          confidence: 0.5,
+          sentiment: "neutral" as const,
+          reasoning: ["无法解析LLM输出为JSON"],
+          rawOutput: text,
+        };
+        currentCtx = addFinding(currentCtx, `${step.id}_r${r}`, agent.id, fallback);
         entries.push({ agent: agent.id, argument: text.slice(0, 200) });
       }
     }
