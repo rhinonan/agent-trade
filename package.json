@@ -2,6 +2,11 @@
   "name": "agenttrade",
   "private": true,
   "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "esbuild": "^0.25.0"
+    }
+  },
   "scripts": {
     "build": "pnpm -r build",
     "build:server": "pnpm --filter @agenttrade/server build",
