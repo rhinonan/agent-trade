@@ -30,6 +30,7 @@ export interface BaseAgent {
   id: string;
   name: string;
   capabilities: Capability[];
+  layer?: string; // "perception" | "analysis" | "decision" | "execution"
   personality: AgentPersona;
   tools: StructuredTool[];
 

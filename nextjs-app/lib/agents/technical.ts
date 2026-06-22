@@ -16,6 +16,7 @@ export class TechnicalAnalystAgent implements BaseAgent {
     this.personality = config.personality;
     // Include stance in capabilities so workflow matching works
     this.capabilities = ["technical", config.personality.stance];
+    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {

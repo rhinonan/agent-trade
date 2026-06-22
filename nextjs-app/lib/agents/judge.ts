@@ -10,6 +10,7 @@ export class JudgeAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = false;
+  layer = "decision";
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
     // The actual LLM interaction happens in executeSynthesize primitive.

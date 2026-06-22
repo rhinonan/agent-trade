@@ -16,6 +16,7 @@ export class ValuationAgent implements BaseAgent {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["valuation", "analysis", config.personality.stance];
+    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -37,6 +38,7 @@ export class PatternRecognitionAgent implements BaseAgent {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["pattern", "technical", config.personality.stance];
+    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -58,6 +60,7 @@ export class EventDrivenAgent implements BaseAgent {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["event-driven", "analysis"];
+    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -79,6 +82,7 @@ export class VolumeAnalysisAgent implements BaseAgent {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["volume", "technical", config.personality.stance];
+    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {

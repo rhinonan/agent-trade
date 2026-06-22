@@ -16,6 +16,7 @@ export class PortfolioManagerAgent implements BaseAgent {
     this.id = config?.id ?? "portfolio-mgr";
     this.personality = config?.personality ?? { stance: "neutral", style: "balanced" };
     this.capabilities = ["portfolio", "decision"];
+    this.layer = "decision";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -37,6 +38,7 @@ export class TimingAgent implements BaseAgent {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["timing", "decision", config.personality.stance];
+    this.layer = "decision";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -58,6 +60,7 @@ export class HedgingAgent implements BaseAgent {
     this.id = config?.id ?? "hedging";
     this.personality = config?.personality ?? { stance: "bearish", style: "conservative" };
     this.capabilities = ["hedging", "decision"];
+    this.layer = "decision";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -79,6 +82,7 @@ export class QuantAnalystAgent implements BaseAgent {
     this.id = config?.id ?? "quant-analyst";
     this.personality = config?.personality ?? { stance: "neutral", style: "balanced" };
     this.capabilities = ["quantitative", "decision"];
+    this.layer = "decision";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
