@@ -139,7 +139,7 @@ export class Director {
     history: { senderId: string; senderName: string; content: string }[],
     onMessage: (msg: PendingMessage) => Promise<void>,
   ): Promise<void> {
-    const agentMatches = (Array.isArray(step.agent) ? step.agent : [step.agent]).filter(Boolean);
+    const agentMatches = (Array.isArray(step.agent) ? step.agent : [step.agent]).filter((x): x is NonNullable<typeof x> => x != null);
     const prompt = (step.prompt ?? "分析 {target}").replace("{target}", target.name ?? target.code);
     await Promise.all(
       agentMatches.map((m) =>

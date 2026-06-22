@@ -11,12 +11,12 @@ export class MarketDataAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = false;
+  layer?: string = "perception";
 
   constructor(config: { id: string; personality?: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["market-data", "data-perception"];
-    this.layer = "perception";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -33,12 +33,12 @@ export class SentimentAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = false;
+  layer?: string = "perception";
 
   constructor(config: { id: string; personality?: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["sentiment", "data-perception"];
-    this.layer = "perception";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -55,12 +55,12 @@ export class MacroAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = false;
+  layer?: string = "perception";
 
   constructor(config: { id: string; personality?: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["macro", "data-perception"];
-    this.layer = "perception";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -77,12 +77,12 @@ export class CapitalFlowAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = false;
+  layer?: string = "perception";
 
   constructor(config: { id: string; personality?: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["capital-flow", "data-perception"];
-    this.layer = "perception";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -99,12 +99,12 @@ export class InstitutionalAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = false;
+  layer?: string = "perception";
 
   constructor(config: { id: string; personality?: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["institutional", "data-perception"];
-    this.layer = "perception";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {

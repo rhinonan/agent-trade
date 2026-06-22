@@ -10,13 +10,13 @@ export class FinancialReportAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = true;
+  layer?: string = "analysis";
 
   constructor(config: { id: string; personality: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality;
     // Include stance in capabilities so workflow matching works
     this.capabilities = ["fundamental", config.personality.stance];
-    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {

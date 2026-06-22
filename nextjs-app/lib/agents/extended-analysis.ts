@@ -11,12 +11,12 @@ export class ValuationAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = true;
+  layer?: string = "analysis";
 
   constructor(config: { id: string; personality: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["valuation", "analysis", config.personality.stance];
-    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -33,12 +33,12 @@ export class PatternRecognitionAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = false;
+  layer?: string = "analysis";
 
   constructor(config: { id: string; personality: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["pattern", "technical", config.personality.stance];
-    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -55,12 +55,12 @@ export class EventDrivenAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = false;
+  layer?: string = "analysis";
 
   constructor(config: { id: string; personality?: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality ?? { stance: "neutral" };
     this.capabilities = ["event-driven", "analysis"];
-    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -77,12 +77,12 @@ export class VolumeAnalysisAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = false;
+  layer?: string = "analysis";
 
   constructor(config: { id: string; personality: AgentPersona }) {
     this.id = config.id;
     this.personality = config.personality;
     this.capabilities = ["volume", "technical", config.personality.stance];
-    this.layer = "analysis";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {

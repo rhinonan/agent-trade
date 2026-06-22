@@ -11,12 +11,12 @@ export class ExecutionAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = true;
+  layer?: string = "execution";
 
   constructor(config?: { id?: string; personality?: AgentPersona }) {
     this.id = config?.id ?? "execution";
     this.personality = config?.personality ?? { stance: "neutral", style: "balanced" };
     this.capabilities = ["execution"];
-    this.layer = "execution";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -33,12 +33,12 @@ export class RiskControlAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = true;
+  layer?: string = "execution";
 
   constructor(config?: { id?: string; personality?: AgentPersona }) {
     this.id = config?.id ?? "risk-ctrl";
     this.personality = config?.personality ?? { stance: "bearish", style: "conservative" };
     this.capabilities = ["risk-control"];
-    this.layer = "execution";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -55,12 +55,12 @@ export class ComplianceAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = true;
   canDebate = false;
+  layer?: string = "execution";
 
   constructor(config?: { id?: string; personality?: AgentPersona }) {
     this.id = config?.id ?? "compliance";
     this.personality = config?.personality ?? { stance: "neutral", style: "conservative" };
     this.capabilities = ["compliance"];
-    this.layer = "execution";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
@@ -77,12 +77,12 @@ export class CostOptimizationAgent implements BaseAgent {
   tools: StructuredTool[] = [];
   canCritique = false;
   canDebate = true;
+  layer?: string = "execution";
 
   constructor(config?: { id?: string; personality?: AgentPersona }) {
     this.id = config?.id ?? "cost-optimizer";
     this.personality = config?.personality ?? { stance: "neutral", style: "balanced" };
     this.capabilities = ["cost-optimization", "execution"];
-    this.layer = "execution";
   }
 
   async analyze(_context: ExecutionContext): Promise<Analysis> {
