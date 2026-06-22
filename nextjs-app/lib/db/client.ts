@@ -29,5 +29,17 @@ export function createTables(db: Database.Database): void {
       updated_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
     CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      sender_name TEXT NOT NULL,
+      content TEXT NOT NULL,
+      metadata TEXT,
+      timestamp INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_messages(session_id, timestamp);
   `);
 }
