@@ -80,6 +80,62 @@ describe("executeAnalyze", () => {
     expect(capturedContent).toContain("茅台");
   });
 
+  it("uses ReAct loop when engineOptions.useReAct is true", async () => {
+    const registry = new AgentRegistry();
+    registry.register(
+      fakeAgent({
+        id: "react-agent",
+        tools: [
+          {
+            name: "test-tool",
+            description: "test",
+            parameters: { type: "object", properties: {}, required: [] },
+            execute: async () => '{"ok": true}',
+          },
+        ] as any,
+      }),
+    );
+
+    const ctx = createContext(
+      { type: "stock", code: "600519", name: "茅台" },
+      "test",
+    );
+
+    const step: WorkflowStep = {
+      id: "react-step",
+      type: "analyze",
+      agent: { id: "react-agent" },
+      prompt: "分析 {target}",
+    };
+
+    let callCount = 0;
+    class ReActTestModel {
+      bindTools() { return this; }
+      async invoke(_msgs: unknown[]) {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            content: "需要数据",
+            tool_calls: [{ id: "c1", name: "test-tool", args: {} }],
+          };
+        }
+        return {
+          content:
+            '{"conclusion":"结论","confidence":0.7,"sentiment":"neutral","reasoning":["理由"]}',
+        };
+      }
+    }
+
+    const result = await executeAnalyze(step, registry, ctx, {
+      llm: new ReActTestModel() as any,
+    }, { useReAct: true });
+
+    expect(callCount).toBe(2);
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].step).toBe("react-step");
+    expect(result.findings[0].agent).toBe("react-agent");
+  });
+
   it("throws when no agent matches", async () => {
     const registry = new AgentRegistry();
     const step: WorkflowStep = {

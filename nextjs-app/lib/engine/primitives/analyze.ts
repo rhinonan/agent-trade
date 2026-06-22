@@ -4,12 +4,19 @@ import type { AgentMatch, ExecutionContext, WorkflowStep, Analysis } from "../ty
 import { addFinding } from "../context.js";
 import { createLLM, type AnalyzeOptions } from "../../llm/create-llm.js";
 import { parseLLMJson, parseSentiment } from "../../llm/parse.js";
+import { runReActLoop } from "../react.js";
+
+export interface EngineOptions {
+  /** Enable ReAct loop for tool-using agents. Default: false */
+  useReAct?: boolean;
+}
 
 export async function executeAnalyze(
   step: WorkflowStep,
   registry: AgentRegistry,
   context: ExecutionContext,
   options: AnalyzeOptions = {},
+  engineOptions: EngineOptions = {},
 ): Promise<ExecutionContext> {
   const match: AgentMatch | undefined = Array.isArray(step.agent) ? step.agent[0] : (step.agent ?? undefined);
   if (!match) throw new Error(`Analyze step "${step.id}" requires an agent match`);
@@ -23,6 +30,20 @@ export async function executeAnalyze(
   const prompt = (step.prompt ?? "分析 {target}")
     .replace("{target}", context.target.name ?? context.target.code);
 
+  // --- ReAct path (NEW) ---
+  if (engineOptions.useReAct) {
+    const analysis = await runReActLoop({
+      agent,
+      context,
+      prompt,
+      target: context.target,
+      maxSteps: (agent as any).maxReActSteps ?? 5,
+      llmOptions: options,
+    });
+    return addFinding(context, step.id, agent.id, analysis);
+  }
+
+  // --- Legacy path (unchanged) ---
   const llm = createLLM(options);
   const messages = [
     new SystemMessage(buildSystemPrompt(agent.personality.stance)),
