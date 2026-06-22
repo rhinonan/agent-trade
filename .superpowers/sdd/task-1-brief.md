@@ -1,78 +1,164 @@
-### Task 1: ChatMessage Types
+### Task 1: `useStockSearch` hook
 
 **Files:**
-- Create: `lib/chat/types.ts`
-- Test: `lib/chat/__tests__/types.test.ts`
+- Create: `nextjs-app/hooks/useStockSearch.ts`
+- Test: `nextjs-app/hooks/__tests__/useStockSearch.test.ts`
 
 **Interfaces:**
-- Produces: `ChatMessage`, `SessionStatus`, `ChatSession`, `DirectorEvent`, `SSEEvent` types — consumed by all subsequent tasks
+- Consumes: `SearchResult` type from `@/lib/data/types` (`{ symbol: string; name: string; industry?: string; marketCap?: number }`)
+- Produces: `useStockSearch(keyword: string): { results: SearchResult[]; loading: boolean; open: boolean; setOpen: (o: boolean) => void }`
 
-- [ ] **Step 1: Write the type definitions**
+- [ ] **Step 1: Write the failing test**
+
+Create `nextjs-app/hooks/__tests__/useStockSearch.test.ts`:
 
 ```ts
-// lib/chat/types.ts
-import type { Analysis, AnalysisTarget, Finding } from "../engine/types.js";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
+import { useStockSearch } from "../useStockSearch.js";
 
-export type SessionStatus = "RUNNING" | "PAUSED" | "STOPPED";
+describe("useStockSearch", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn();
+  });
 
-export interface ChatMessage {
-  id: string;
-  sessionId: string;
-  role: "agent" | "user" | "system";
-  senderId: string;
-  senderName: string;
-  content: string;
-  metadata: {
-    type: "analysis" | "critique" | "synthesis" | "interjection" | "step-boundary";
-    stepId?: string;
-    layer?: string;
-    analysis?: Analysis;
-    mentionAgentIds?: string[];
-    isWorkflowStep?: boolean;
-  } | null;
-  timestamp: number;
-}
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
 
-export type PendingMessage = Omit<ChatMessage, "id" | "sessionId" | "timestamp">;
+  it("returns empty results when keyword is empty", () => {
+    const { result } = renderHook(() => useStockSearch(""));
+    expect(result.current.results).toEqual([]);
+    expect(result.current.loading).toBe(false);
+  });
 
-export interface ChatSession {
-  id: string;
-  target: AnalysisTarget;
-  workflowName: string;
-  status: SessionStatus;
-  stepIndex: number;
-  findings: Finding[];
-  createdAt: number;
-}
+  it("sets loading true after debounce and fetches", async () => {
+    const mockResults = [{ symbol: "600519", name: "贵州茅台", industry: "白酒" }];
+    (globalThis.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ keyword: "600", results: mockResults }),
+    });
 
-export interface DirectorEvent {
-  type: "step-start" | "step-complete" | "layer-boundary";
-  stepId?: string;
-  stepType?: string;
-  layer?: string;
-  agentIds?: string[];
-}
+    const { result, rerender } = renderHook(
+      ({ kw }) => useStockSearch(kw),
+      { initialProps: { kw: "600" } }
+    );
 
-export interface SSEEvent {
-  event: string;
-  data: unknown;
-}
+    // Before debounce, no fetch yet
+    expect(result.current.loading).toBe(false);
 
-export interface CreateSessionInput {
-  code?: string;
-  sector?: string;
-  index?: string;
-  workflow?: string;
-  provider?: string;
-  model?: string;
-  dataServiceUrl?: string;
+    // Advance past 300ms debounce
+    act(() => { vi.advanceTimersByTime(350); });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.results).toEqual(mockResults);
+    });
+  });
+
+  it("does nothing for single character input without debounce", async () => {
+    const { result } = renderHook(() => useStockSearch("6"));
+    expect(result.current.loading).toBe(false);
+    // Timer not advanced, no fetch
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+```bash
+cd nextjs-app && pnpm vitest run hooks/__tests__/useStockSearch.test.ts
+```
+
+Expected: FAIL — module not found or hook not exported.
+
+- [ ] **Step 3: Write the hook implementation**
+
+Create `nextjs-app/hooks/useStockSearch.ts`:
+
+```ts
+"use client";
+import { useState, useEffect, useRef } from "react";
+import type { SearchResult } from "@/lib/data/types.js";
+
+export function useStockSearch(keyword: string): {
+  results: SearchResult[];
+  loading: boolean;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+} {
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (!keyword || keyword.trim().length === 0) {
+      setResults([]);
+      setLoading(false);
+      setOpen(false);
+      return;
+    }
+
+    setLoading(true);
+
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/search?keyword=${encodeURIComponent(keyword.trim())}`);
+        if (!res.ok) { setResults([]); return; }
+        const data = await res.json();
+        setResults(data.results ?? []);
+        setOpen(true);
+      } catch {
+        setResults([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [keyword]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open]);
+
+  return { results, loading, open, setOpen };
 }
 ```
 
-- [ ] **Step 2: Commit**
+- [ ] **Step 4: Run test to verify it passes**
 
 ```bash
-git add lib/chat/types.ts && git commit -m "feat(chat): add ChatMessage and session types"
+cd nextjs-app && pnpm vitest run hooks/__tests__/useStockSearch.test.ts
+```
+
+Expected: PASS (all 3 tests)
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add nextjs-app/hooks/useStockSearch.ts nextjs-app/hooks/__tests__/useStockSearch.test.ts
+git commit -m "feat: add useStockSearch hook with debounced fetch + tests"
 ```
 
 ---

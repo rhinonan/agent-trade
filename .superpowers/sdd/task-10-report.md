@@ -1,21 +1,16 @@
-# Task 10 Report: Built-in Agents
+# Task 10 Report: StructuredAnalysis Component
 
-**Status:** Completed
-**Commit:** cd4bbb7
-**Tests:** 3/3 passed (full suite: 44/44)
-**Files Created:**
-- `nextjs-app/lib/agents/base.ts` — Abstract `AgentBase` class
-- `nextjs-app/lib/agents/technical.ts` — `TechnicalAnalystAgent`
-- `nextjs-app/lib/agents/fundamental.ts` — `FinancialReportAgent`
-- `nextjs-app/lib/agents/judge.ts` — `JudgeAgent`
-- `nextjs-app/lib/agents/index.ts` — Barrel export + `registerBuiltinAgents()`
-- `nextjs-app/lib/agents/__tests__/agents.test.ts` — 3 tests
+## Status
+Completed.
 
-**Implementation Notes:**
-- Agents implement `BaseAgent` from `lib/engine/types.ts` directly
-- `AgentBase` abstract class provided for custom agent extensions
-- Tools arrays are empty (DataClient integration deferred to Task 12)
-- `analyze()` returns stub `Analysis` — actual LLM interaction handled by `executeAnalyze` primitive
-- `registerBuiltinAgents()` registers 7 agents: 3 technical (bull/bear/neutral), 3 financial (bull/bear/neutral), 1 judge
+## Commit
+- `00a07b7` — `feat: add StructuredAnalysis component with expand/collapse`
 
-**Concerns:** None
+## Self-Review
+- Created `nextjs-app/components/chat/StructuredAnalysis.tsx` with exact code from the brief.
+- Component renders sentiment badge (bullish/bearish/neutral with color-coded styles), confidence percentage, conclusion text (truncated at 120 chars with expand/collapse), and reasoning list (visible only when expanded).
+- Interface defined locally (not imported from engine) for independence as specified.
+- All props implemented: `analysis`, `content`, `expanded`, `onToggle`.
+
+## Concerns
+None. The component is self-contained and ready for use in `MessageBubble` (Task 11).
