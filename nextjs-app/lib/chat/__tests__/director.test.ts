@@ -198,4 +198,149 @@ describe("Director", () => {
     const result = await director.advance(target, [], [], async () => {});
     expect(result.hasMore).toBe(false);
   });
+
+  it("vote step delegates to execPanel and invokes all agents", async () => {
+    const invokedAgents: string[] = [];
+    const voteMock = {
+      invoke: vi.fn().mockImplementation(async (messages: any[]) => {
+        const sysContent = typeof messages[0]?.content === "string" ? messages[0].content : "";
+        const agentMatch = sysContent.match(/你是([a-zA-Z0-9_-]+)/);
+        invokedAgents.push(agentMatch ? agentMatch[1] : "unknown");
+        return {
+          content: JSON.stringify({
+            conclusion: "投票结论",
+            confidence: 0.8,
+            sentiment: "neutral",
+            reasoning: ["r1"],
+          }),
+        };
+      }),
+    } as any;
+
+    const voteDag: WorkflowDAG = {
+      name: "vote-test",
+      version: "1",
+      steps: [
+        {
+          id: "vote-step",
+          type: "vote",
+          agent: [{ id: "voter1" }, { id: "voter2" }, { id: "voter3" }],
+          prompt: "投票 {target}",
+        },
+      ],
+    };
+
+    const d = new Director(voteDag, { provider: "deepseek", llm: voteMock });
+    const messages: PendingMessage[] = [];
+    await d.advance(target, [], [], async (msg) => {
+      messages.push(msg);
+    });
+
+    // All three agents should have been invoked
+    expect(invokedAgents).toContain("voter1");
+    expect(invokedAgents).toContain("voter2");
+    expect(invokedAgents).toContain("voter3");
+    // All should produce agent messages
+    const agentMsgs = messages.filter((m) => m.role === "agent");
+    expect(agentMsgs.length).toBe(3);
+  });
+
+  it("parallel step runs children concurrently", async () => {
+    const order: string[] = [];
+    const parallelMock = {
+      invoke: vi.fn().mockImplementation(async (messages: any[]) => {
+        const sysContent = typeof messages[0]?.content === "string" ? messages[0].content : "";
+        const agentMatch = sysContent.match(/你是([a-zA-Z0-9_-]+)/);
+        const agent = agentMatch ? agentMatch[1] : "unknown";
+        // child1 adds a delay so that if run sequentially, it blocks child2
+        if (agent === "child1") await new Promise((r) => setTimeout(r, 50));
+        order.push(agent);
+        return {
+          content: JSON.stringify({
+            conclusion: `${agent}结论`,
+            confidence: 0.8,
+            sentiment: "neutral",
+            reasoning: ["r1"],
+          }),
+        };
+      }),
+    } as any;
+
+    const parallelDag: WorkflowDAG = {
+      name: "parallel-test",
+      version: "1",
+      steps: [
+        {
+          id: "parallel-root",
+          type: "parallel",
+          children: [
+            { id: "child1-step", type: "analyze", agent: { id: "child1" }, prompt: "分析 {target}" },
+            { id: "child2-step", type: "analyze", agent: { id: "child2" }, prompt: "分析 {target}" },
+          ],
+        },
+      ],
+    };
+
+    const d = new Director(parallelDag, { provider: "deepseek", llm: parallelMock });
+    await d.advance(target, [], [], async () => {});
+
+    // Both children should have been invoked
+    expect(order).toContain("child1");
+    expect(order).toContain("child2");
+    // With Promise.all, child2 (no delay) finishes before child1 (50ms delay)
+    // If sequential, child1 would be first in the order
+    expect(order[0]).toBe("child2");
+  });
+
+  it("debate step passes prior arguments to subsequent agents", async () => {
+    const prompts: string[] = [];
+    const debateMock = {
+      invoke: vi.fn().mockImplementation(async (messages: any[]) => {
+        const humanContent = typeof messages[1]?.content === "string" ? messages[1].content : "";
+        prompts.push(humanContent);
+        const sysContent = typeof messages[0]?.content === "string" ? messages[0].content : "";
+        const agentMatch = sysContent.match(/你是([a-zA-Z0-9_-]+)/);
+        const agent = agentMatch ? agentMatch[1] : "agent";
+        return {
+          content: JSON.stringify({
+            conclusion: `${agent}-结论`,
+            confidence: 0.7,
+            sentiment: "bullish",
+            reasoning: ["r"],
+          }),
+        };
+      }),
+    } as any;
+
+    const debateDag: WorkflowDAG = {
+      name: "debate-test",
+      version: "1",
+      steps: [
+        {
+          id: "debate-step",
+          type: "debate",
+          agent: [{ id: "agentA" }, { id: "agentB" }],
+          maxRounds: 2,
+          prompt: "辩论 {target}",
+        },
+      ],
+    };
+
+    const d = new Director(debateDag, { provider: "deepseek", llm: debateMock });
+    await d.advance(target, [], [], async () => {});
+
+    // 4 invocations: 2 rounds * 2 agents
+    expect(prompts.length).toBe(4);
+
+    // Round 0, agentA: no prior debate history
+    expect(prompts[0]).not.toContain("对方观点");
+    // Round 0, agentB: should see agentA's conclusion
+    expect(prompts[1]).toContain("对方观点");
+    expect(prompts[1]).toContain("agentA-结论");
+    // Round 1, agentA: should see agentB's conclusion
+    expect(prompts[2]).toContain("agentB-结论");
+    // Round 1, agentB: should see both
+    expect(prompts[3]).toContain("agentA-结论");
+    expect(prompts[3]).toContain("agentB-结论");
+  });
 });

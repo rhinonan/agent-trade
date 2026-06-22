@@ -89,6 +89,7 @@ export class Director {
       case "analyze":
         return this.execAnalyze(step, target, findings, history, onMessage);
       case "panel":
+      case "vote":
         return this.execPanel(step, target, findings, history, onMessage);
       case "synthesize":
         return this.execSynthesize(step, target, findings, onMessage);
@@ -98,9 +99,11 @@ export class Director {
         return this.execDebate(step, target, findings, onMessage);
       case "parallel": {
         if (!step.children) return;
-        for (const child of step.children) {
-          await this.executeStep(child, target, findings, history, onMessage);
-        }
+        await Promise.all(
+          step.children.map((child) =>
+            this.executeStep(child, target, findings, history, onMessage),
+          ),
+        );
         return;
       }
       case "sequential": {
@@ -196,7 +199,8 @@ export class Director {
       for (const match of agentMatches) {
         const othersText = debateHistory.map((e) => `[${e.agent}]: ${e.argument}`).join("\n");
         const prompt = `辩论轮次 ${r + 1}/${maxRounds}。${step.prompt ?? "就分析结论进行辩论"}\n${othersText ? `\n对方观点：\n${othersText}` : ""}`;
-        await this.invokeAgent(match.id, prompt, target, findings, [], onMessage, step);
+        const result = await this.invokeAgent(match.id, prompt, target, findings, [], onMessage, step);
+        debateHistory.push({ agent: match.id, argument: result.conclusion });
       }
     }
   }
@@ -209,7 +213,7 @@ export class Director {
     history: { senderId: string; senderName: string; content: string }[],
     onMessage: (msg: PendingMessage) => Promise<void>,
     step?: WorkflowStep,
-  ): Promise<void> {
+  ): Promise<{ conclusion: string }> {
     const llm = createLLM(this.options);
     const historyText = history.map((h) => `[${h.senderName}]: ${h.content}`).join("\n");
     const allFindingsText = findings
@@ -229,8 +233,11 @@ export class Director {
     const response = await llm.invoke(messages);
     const text = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
 
+    let conclusion = text.slice(0, 200);
+
     try {
       const parsed = parseLLMJson(text) as Record<string, unknown>;
+      conclusion = (parsed.conclusion as string) ?? text.slice(0, 200);
       await onMessage({
         role: "agent",
         senderId: agentId,
@@ -241,7 +248,7 @@ export class Director {
           stepId: step?.id,
           isWorkflowStep: true,
           analysis: {
-            conclusion: (parsed.conclusion as string) ?? text.slice(0, 200),
+            conclusion,
             confidence: Math.max(0, Math.min(1, (parsed.confidence as number) ?? 0.5)),
             sentiment: parseSentiment(parsed.sentiment),
             reasoning: Array.isArray(parsed.reasoning)
@@ -260,6 +267,8 @@ export class Director {
         metadata: { type: "analysis", stepId: step?.id, isWorkflowStep: true },
       });
     }
+
+    return { conclusion };
   }
 
   private inferLayer(step: WorkflowStep): string | undefined {
