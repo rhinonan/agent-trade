@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { StockSearchInput } from "@/components/landing/StockSearchInput";
 import { WorkflowSelector } from "@/components/landing/WorkflowSelector";
+import { RecentAnalyses } from "@/components/landing/RecentAnalyses";
 
 export default function HomePage() {
   const [code, setCode] = useState("");
@@ -42,6 +43,8 @@ export default function HomePage() {
             {loading ? "启动中..." : "开始分析"}
           </button>
         </div>
+
+        <RecentAnalyses />
       </div>
     </main>
   );
