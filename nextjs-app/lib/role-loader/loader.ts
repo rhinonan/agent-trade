@@ -4,7 +4,7 @@ import { load as parseYaml } from "js-yaml";
 import { ChatPromptTemplate, SystemMessagePromptTemplate } from "@langchain/core/prompts";
 import { StructuredOutputParser } from "@langchain/core/output_parsers";
 import { z } from "zod";
-import { AgentYamlSchema, type AgentYaml } from "./schema.js";
+import { AgentYamlSchema, WorkflowYamlSchema, type AgentYaml, type WorkflowYaml } from "./schema.js";
 import { ZodError } from "zod";
 import { toolsByName } from "@/lib/tools/index.js";
 import type { ToolDefinition } from "@/lib/tools/index.js";
@@ -79,6 +79,7 @@ function buildOutputParser(schema: Record<string, unknown> | undefined): Structu
 
 export class RoleLoader {
   private agents = new Map<string, CompiledAgent>();
+  private workflows = new Map<string, WorkflowYaml>();
 
   // ========== Agent loading ==========
 
@@ -143,6 +144,63 @@ export class RoleLoader {
     };
   }
 
+  // ========== Workflow loading ==========
+
+  async scanWorkflows(dir: string): Promise<void> {
+    if (!fs.existsSync(dir)) {
+      console.warn(`[RoleLoader] Workflow directory not found: ${dir}`);
+      return;
+    }
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".yaml") || f.endsWith(".yml"));
+    for (const file of files) {
+      const filepath = path.join(dir, file);
+      try {
+        const raw = fs.readFileSync(filepath, "utf-8");
+        await this.loadWorkflowYaml(raw, `file:${file}`);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          console.error(`[RoleLoader] Failed to load workflow from ${file}: ${err.message}`);
+          continue;
+        }
+        throw err;
+      }
+    }
+  }
+
+  async loadWorkflowYaml(raw: string, source: string): Promise<WorkflowYaml> {
+    const parsed = parseYaml(raw);
+    const validated = WorkflowYamlSchema.parse(parsed);
+    this.workflows.set(validated.name, validated);
+    return validated;
+  }
+
+  // ========== DB loading ==========
+
+  async loadFromDB(userId: string): Promise<void> {
+    const { RoleRepo } = await import("./repo.js");
+    const { getDb } = await import("../db/client.js");
+
+    const repo = new RoleRepo(getDb());
+    const agentRoles = repo.listByUser(userId, "agent");
+    const workflowRoles = repo.listByUser(userId, "workflow");
+
+    for (const role of agentRoles) {
+      try {
+        await this.loadAgentYaml(role.yamlContent, `db:${userId}/${role.id}`);
+      } catch (err) {
+        console.error(`[RoleLoader] Failed to load user agent "${role.id}":`, err);
+      }
+    }
+
+    for (const role of workflowRoles) {
+      try {
+        await this.loadWorkflowYaml(role.yamlContent, `db:${userId}/${role.id}`);
+      } catch (err) {
+        console.error(`[RoleLoader] Failed to load user workflow "${role.id}":`, err);
+      }
+    }
+  }
+
   // ========== Accessors ==========
 
   getAgent(id: string): CompiledAgent | undefined {
@@ -157,8 +215,21 @@ export class RoleLoader {
     return this.agents.has(id);
   }
 
+  getWorkflow(name: string): WorkflowYaml | undefined {
+    return this.workflows.get(name);
+  }
+
+  listWorkflows(): WorkflowYaml[] {
+    return Array.from(this.workflows.values());
+  }
+
+  hasWorkflow(name: string): boolean {
+    return this.workflows.has(name);
+  }
+
   clear(): void {
     this.agents.clear();
+    this.workflows.clear();
   }
 }
 

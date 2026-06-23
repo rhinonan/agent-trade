@@ -47,15 +47,27 @@ export async function loadWorkflowYaml(name: string): Promise<WorkflowYaml> {
   return WorkflowYamlSchema.parse(parsed);
 }
 
+let _builtinAgentsLoaded = false;
+let _builtinWorkflowsLoaded = false;
+
 /**
- * Ensure the singleton RoleLoader has agents loaded from roles/agents/.
- * Idempotent — skips scanning if agents are already loaded.
+ * Ensure the singleton RoleLoader has built-in agents and workflows loaded.
+ * Idempotent — skips scanning if already loaded in this process.
+ * Also scans workflows from roles/workflows/.
  */
 export async function ensureAgentsLoaded(): Promise<void> {
   const loader = getRoleLoader();
-  if (loader.listAgents().length === 0) {
+  if (!_builtinAgentsLoaded) {
     const agentsDir = path.join(resolveRolesDir(), "agents");
     await loader.scanAgents(agentsDir);
+    _builtinAgentsLoaded = true;
+  }
+  if (!_builtinWorkflowsLoaded) {
+    const workflowsDir = path.join(resolveRolesDir(), "workflows");
+    if (fs.existsSync(workflowsDir)) {
+      await loader.scanWorkflows(workflowsDir);
+    }
+    _builtinWorkflowsLoaded = true;
   }
 }
 

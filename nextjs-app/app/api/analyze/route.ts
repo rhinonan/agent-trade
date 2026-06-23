@@ -93,6 +93,12 @@ async function runAnalysis(
       workflow: dto.workflow ?? "bull-bear",
     });
 
+    // ── Load user-uploaded roles from DB ────────────────────────────
+    if (dto.userId !== "anonymous") {
+      const { getRoleLoader } = await import("@/lib/role-loader/loader.js");
+      await getRoleLoader().loadFromDB(dto.userId);
+    }
+
     // ── LangGraph engine: YAML workflow → LangGraph runner ──
     const workflowYaml = await loadWorkflowYaml(dto.workflow ?? "bull-bear");
 
