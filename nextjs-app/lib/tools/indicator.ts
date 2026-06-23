@@ -100,16 +100,21 @@ export const maTool: ToolDefinition = {
       count: 120,
     });
     const maData = res.indicators?.ma ?? {};
-    // Get latest values for each MA period
-    const latest: Record<string, number | null> = {};
-    for (const [period, values] of Object.entries(maData)) {
+    // Normalize keys: strip "ma" prefix if present (e.g. "ma5" → "5")
+    const normalized: Record<string, number | null> = {};
+    for (const [key, values] of Object.entries(maData)) {
       const arr = values.filter((v): v is number => v != null);
-      latest[period] = arr.length > 0 ? arr[arr.length - 1] : null;
+      const latest = arr.length > 0 ? arr[arr.length - 1] : null;
+      // Store under numeric key (strip "ma" / "MA" prefix)
+      const cleanKey = key.replace(/^ma/i, "");
+      normalized[cleanKey] = latest;
     }
 
     // Determine alignment by checking monotonicity
     const periods = ["5", "10", "20", "60"];
-    const alignmentValues = periods.map((p) => latest[p]).filter((v): v is number => v != null);
+    const alignmentValues = periods
+      .map((p) => normalized[p])
+      .filter((v): v is number => v != null);
     let alignment = "unknown";
     if (alignmentValues.length >= 3) {
       // Bullish alignment: short-term MA > long-term MA (monotonically decreasing)
@@ -126,7 +131,7 @@ export const maTool: ToolDefinition = {
 
     return JSON.stringify({
       symbol: ctx.target.code,
-      latest,
+      latest: normalized,
       alignment,
     });
   },

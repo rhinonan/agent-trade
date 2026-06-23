@@ -12,6 +12,7 @@ import type {
   SectorListResponse,
   SectorConstituentsResponse,
 } from "./types.js";
+import { calcMACD, calcRSI, calcMA, calcBollinger } from "./indicators.js";
 
 // ---- Internal fetch type ----
 
@@ -25,17 +26,54 @@ class KlineModule {
   async get(params: KlineParams): Promise<KlineResponse> {
     const { symbol, period = "daily", count = 120, adjust = "qfq" } = params;
     const qs = `period=${period}&count=${count}&adjust=${adjust}`;
-    const res = await this.fetch(`/kline/${encodeURIComponent(symbol)}?${qs}`);
-    return res.json() as Promise<KlineResponse>;
+    try {
+      const res = await this.fetch(`/kline/${encodeURIComponent(symbol)}?${qs}`);
+      return res.json() as Promise<KlineResponse>;
+    } catch {
+      return { symbol, period: period as "daily" | "weekly" | "monthly", adjust: adjust as "none" | "qfq" | "hfq", count, bars: [] };
+    }
   }
 
   async indicators(params: IndicatorsParams): Promise<IndicatorsResponse> {
     const { symbol, names = ["MACD", "RSI"], period = "daily", count = 120 } = params;
     const nameStr = names.join(",");
     const qs = `names=${nameStr}&period=${period}&count=${count}`;
-    const res = await this.fetch(`/kline/${encodeURIComponent(symbol)}/indicators?${qs}`);
-    return res.json() as Promise<IndicatorsResponse>;
+    try {
+      const res = await this.fetch(`/kline/${encodeURIComponent(symbol)}/indicators?${qs}`);
+      return res.json() as Promise<IndicatorsResponse>;
+    } catch {
+      // Fallback: fetch raw kline and compute indicators locally
+      try {
+        const kline = await this.get({ symbol, period: period as "daily" | "weekly" | "monthly", count, adjust: "qfq" });
+        const closes = kline.bars.map((b) => b.close);
+        if (closes.length > 0) {
+          return {
+            symbol,
+            indicators: computeIndicatorsLocally(closes, names),
+          };
+        }
+      } catch {
+        // Double failure — return empty indicators
+      }
+      return { symbol, indicators: {} };
+    }
   }
+}
+
+/** Compute requested indicators from raw close prices (no remote service needed). */
+function computeIndicatorsLocally(
+  closes: number[],
+  names: string[],
+): IndicatorsResponse["indicators"] {
+  const indicators: IndicatorsResponse["indicators"] = {};
+  for (const name of names) {
+    const n = name.trim().toUpperCase();
+    if (n === "MACD") indicators.macd = calcMACD(closes);
+    else if (n === "RSI") indicators.rsi = calcRSI(closes);
+    else if (n === "MA") indicators.ma = calcMA(closes);
+    else if (n === "BOLL") indicators.boll = calcBollinger(closes);
+  }
+  return indicators;
 }
 
 class FinancialModule {

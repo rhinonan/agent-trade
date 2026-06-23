@@ -131,6 +131,55 @@ describe("DataClient", () => {
         expect.anything(),
       );
     });
+
+    it("falls back to empty bars when kline endpoint returns 500", async () => {
+      globalThis.fetch = mockFetch(false, "Internal Server Error", 500);
+      const result = await client.kline.get({ symbol: "000001" });
+      expect(result.symbol).toBe("000001");
+      expect(result.bars).toEqual([]);
+    });
+
+    it("falls back to empty indicators when service returns 500 and no kline data", async () => {
+      // Both calls fail — indicators then fallback kline
+      globalThis.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockRejectedValueOnce(new Error("Network error"));
+      const result = await client.kline.indicators({ symbol: "000001", names: ["RSI"] });
+      expect(result.symbol).toBe("000001");
+      expect(result.indicators).toEqual({});
+      // Should have tried indicators first, then kline fallback
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("computes indicators locally from raw kline on service failure", async () => {
+      // Build 120 bars of uptrend data
+      const bars = Array.from({ length: 120 }, (_, i) => ({
+        date: `2024-01-${String(i + 1).padStart(2, "0")}`,
+        open: 100 + i * 0.5,
+        high: 102 + i * 0.5,
+        low: 99 + i * 0.5,
+        close: 101 + i * 0.5,
+        volume: 1000000,
+      }));
+      const klineResponse = { symbol: "000001", period: "daily", adjust: "qfq", count: 120, bars };
+
+      // indicators call fails, kline fallback succeeds
+      globalThis.fetch = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("Data service error 500"))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => klineResponse,
+        } as Partial<Response> as Response);
+
+      const result = await client.kline.indicators({ symbol: "000001", names: ["MACD", "RSI"] });
+      expect(result.symbol).toBe("000001");
+      expect(result.indicators.macd).toBeDefined();
+      expect(result.indicators.macd!.length).toBe(120);
+      expect(result.indicators.rsi).toBeDefined();
+      expect(result.indicators.rsi!.length).toBe(120);
+    });
   });
 
   // ---- FinancialModule ----

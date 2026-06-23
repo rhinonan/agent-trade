@@ -138,4 +138,25 @@ describe("maTool", () => {
     // MA5=1705 > MA10=1695 > MA20=1685 => bullish alignment
     expect(parsed.alignment).toBe("bullish_alignment");
   });
+
+  it("handles 'ma5' prefixed keys for backward compatibility", async () => {
+    const ctx = mockCtx({
+      dataClient: {
+        kline: {
+          get: vi.fn(),
+          indicators: vi.fn().mockResolvedValue({
+            symbol: "600519",
+            indicators: {
+              ma: { ma5: [1700, 1705], ma10: [1690, 1695], ma20: [1680, 1685], ma60: [1650, 1655] },
+            },
+          }),
+        },
+      } as unknown as DataClient,
+    });
+    const result = await maTool.execute({}, ctx);
+    const parsed = JSON.parse(result);
+    expect(parsed.latest["5"]).toBe(1705);
+    expect(parsed.latest["10"]).toBe(1695);
+    expect(parsed.alignment).toBe("bullish_alignment");
+  });
 });
