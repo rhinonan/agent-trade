@@ -4,7 +4,7 @@ import { ChatRepo } from "@/lib/db/chat-repo.js";
 import { SessionRepo } from "@/lib/db/session-repo.js";
 import { createSSEEmitter } from "@/lib/chat/sse-emitter.js";
 import { getSessionManager } from "@/lib/chat/session-manager.js";
-import type { ChatSession } from "@/lib/chat/types.js";
+import type { ChatSession, SessionStatus } from "@/lib/chat/types.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,7 +28,7 @@ export async function GET(
   }
 
   // Build a local status tracker — we poll both memory and DB
-  let status = session?.status ?? (dbRow?.status === "STOPPED" ? "STOPPED" : "RUNNING");
+  let status: SessionStatus = session?.status ?? (dbRow?.status === "STOPPED" ? "STOPPED" : "RUNNING");
   let closed = false;
 
   const stream = new ReadableStream({
@@ -62,14 +62,14 @@ export async function GET(
           }
 
           // Detect status changes — try in-memory first, then DB
-          let currentStatus: string | undefined;
+          let currentStatus: SessionStatus | undefined;
           const currentSession = mgr.getSession(sessionId);
           if (currentSession) {
             currentStatus = currentSession.status;
           } else {
             // Fallback: poll SessionRepo for status
             const dbSession = sessionRepo.getById(sessionId);
-            currentStatus = dbSession?.status;
+            currentStatus = dbSession?.status as SessionStatus | undefined;
           }
 
           if (currentStatus && currentStatus !== status) {

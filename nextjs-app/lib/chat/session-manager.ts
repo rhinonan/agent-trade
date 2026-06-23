@@ -67,7 +67,8 @@ export class SessionManager {
       status: "RUNNING", stepIndex: 0, findings: [], createdAt: Date.now(),
     };
 
-    const director = new Director(dag, options, registry);
+    const dataClient = new DataClient({ baseUrl: input.dataServiceUrl ?? "http://localhost:9500" });
+    const director = new Director(dag, options, registry, dataClient);
     this.sessions.set(id, { session, director, dag, registry, options, _advancing: false });
 
     if (this.sessionRepo) {
@@ -79,7 +80,6 @@ export class SessionManager {
 
       // Fire async lookup for stock name
       if (target.type === "stock") {
-        const dataClient = new DataClient({ baseUrl: input.dataServiceUrl ?? "http://localhost:9500" });
         dataClient.reference.get(target.code).then(info => {
           this.sessionRepo?.updateName(id, info.name);
         }).catch(() => {});

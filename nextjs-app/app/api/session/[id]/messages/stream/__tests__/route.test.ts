@@ -32,6 +32,17 @@ const { getMemDb } = vi.hoisted(() => {
     );
     CREATE INDEX IF NOT EXISTS idx_analyses_created
       ON analyses(created_at DESC);
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      target_code TEXT NOT NULL,
+      target_name TEXT,
+      target_type TEXT NOT NULL DEFAULT 'stock',
+      workflow_name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'RUNNING',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_sessions_created
+      ON sessions(created_at DESC);
   `);
   return { getMemDb: () => db };
 });

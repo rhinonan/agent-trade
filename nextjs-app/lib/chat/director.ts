@@ -8,6 +8,7 @@ import { createLLM } from "../llm/create-llm.js";
 import { parseLLMJson, parseSentiment } from "../llm/parse.js";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { runReActLoop } from "../engine/react.js";
+import type { DataClient } from "../data/client.js";
 
 export class Director {
   status: SessionStatus = "RUNNING";
@@ -15,11 +16,13 @@ export class Director {
   private dag: WorkflowDAG;
   private options: AnalyzeOptions;
   private registry?: AgentRegistry;
+  private dataClient?: DataClient;
 
-  constructor(dag: WorkflowDAG, options: AnalyzeOptions = {}, registry?: AgentRegistry) {
+  constructor(dag: WorkflowDAG, options: AnalyzeOptions = {}, registry?: AgentRegistry, dataClient?: DataClient) {
     this.dag = dag;
     this.options = options;
     this.registry = registry;
+    this.dataClient = dataClient;
   }
 
   pause(): void {
@@ -331,6 +334,7 @@ export class Director {
       target,
       maxSteps: (agent as any).maxReActSteps ?? 5,
       llmOptions: this.options,
+      dataClient: this.dataClient,
       onEvent: async (event) => {
         if (event.type === "thought") {
           await onMessage({
