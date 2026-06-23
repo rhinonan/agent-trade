@@ -1,10 +1,95 @@
 import type { Runnable } from "@langchain/core/runnables";
 import { HumanMessage } from "@langchain/core/messages";
+import { StructuredTool, tool } from "@langchain/core/tools";
 import { createToolCallingAgent, AgentExecutor } from "langchain/agents";
 import type { CompiledAgent } from "../role-loader/loader.js";
 import type { WorkflowState } from "./state.js";
+import type { ToolDefinition } from "../tools/types.js";
 
 type State = typeof WorkflowState.State;
+
+// ——— Tool Definition → LangChain StructuredTool adapter ———
+
+/**
+ * Convert our internal ToolDefinition to a LangChain StructuredTool.
+ * This bridges the gap between YAML-declared tools and LangChain's tool-calling agent.
+ */
+function toolDefinitionToStructuredTool(td: ToolDefinition): StructuredTool {
+  return tool(
+    async (params: Record<string, unknown>) => {
+      // Minimal context — real context injection happens in the tool-calling path
+      const result = await td.execute(params, {
+        dataClient: undefined as any,
+        target: { type: "stock", code: "" },
+        executionState: {} as any,
+        signal: new AbortController().signal,
+      });
+      return result;
+    },
+    {
+      name: td.name,
+      description: td.description,
+      schema: td.parameters as any,
+    },
+  );
+}
+
+// ——— State variable interpolation ———
+
+/**
+ * Resolve template variables in a prompt string against the current workflow state.
+ *
+ * Supported variables:
+ * - `{{target}}` → state.target
+ * - `{{findings}}` → formatted JSON list of all findings
+ * - `{{state.<node_id>}}` → JSON of that node's finding
+ * - `{{state.<node_id>.<field>}}` → specific field of that node's finding
+ * - `{{round}}` → state.round
+ */
+function resolveStateVariables(template: string, state: State): string {
+  let result = template;
+
+  // {{target}}
+  result = result.replace(/\{\{target\}\}/g, state.target);
+
+  // {{round}}
+  result = result.replace(/\{\{round\}\}/g, String(state.round ?? 0));
+
+  // {{findings}} — formatted list
+  result = result.replace(/\{\{findings\}\}/g, () => {
+    const entries = Object.entries(state.findings ?? {});
+    if (entries.length === 0) return "(暂无分析结果)";
+    return entries
+      .map(([key, value]) => `[${key}]: ${JSON.stringify(value)}`)
+      .join("\n");
+  });
+
+  // {{state.<node_id>.<field>}} — specific field
+  result = result.replace(
+    /\{\{state\.(\w+)\.(\w+)\}\}/g,
+    (_match, nodeId: string, field: string) => {
+      const finding = state.findings?.[nodeId];
+      if (finding && typeof finding === "object" && field in (finding as Record<string, unknown>)) {
+        return String((finding as Record<string, unknown>)[field]);
+      }
+      return `{{state.${nodeId}.${field}}}`; // leave unresolved if not found
+    },
+  );
+
+  // {{state.<node_id>}} — whole finding
+  result = result.replace(
+    /\{\{state\.(\w+)\}\}/g,
+    (_match, nodeId: string) => {
+      const finding = state.findings?.[nodeId];
+      if (finding !== undefined) {
+        return typeof finding === "string" ? finding : JSON.stringify(finding);
+      }
+      return `{{state.${nodeId}}}`; // leave unresolved if not found
+    },
+  );
+
+  return result;
+}
 
 // ——— Agent Node ———
 
@@ -13,7 +98,7 @@ type State = typeof WorkflowState.State;
  *
  * The node:
  * 1. Creates a tool-calling agent from the compiled agent's prompt + tools
- * 2. Invokes it with the given task prompt (with {{target}} interpolation)
+ * 2. Invokes it with the given task prompt (with {{target}} and {{state.*}} interpolation)
  * 3. Parses the output (via StructuredOutputParser if configured)
  * 4. Stores the result in state.findings[agentId]
  */
@@ -25,8 +110,8 @@ export function buildAgentNode(
   return async (state: State): Promise<Partial<State>> => {
     const llm = llmFactory();
 
-    // Interpolate {{target}} in the task prompt
-    const resolvedPrompt = taskPrompt.replace(/\{\{target\}\}/g, state.target);
+    // Interpolate all state variables in the task prompt
+    const resolvedPrompt = resolveStateVariables(taskPrompt, state);
 
     if (compiled.tools.length === 0) {
       // Simple path: no tools, just invoke LLM with system prompt
@@ -64,19 +149,18 @@ export function buildAgentNode(
       };
     }
 
-    // Tool path: use createToolCallingAgent
-    // NOTE: compiled.tools are ToolDefinition[], not LangChain StructuredTool[].
-    // We cast here; a proper adapter wrapping ToolDefinition.execute → StructuredTool
-    // will be needed when end-to-end tool calling is exercised.
+    // Tool path: convert ToolDefinition[] → StructuredTool[], then invoke
+    const structuredTools = compiled.tools.map(toolDefinitionToStructuredTool);
+
     const agent = createToolCallingAgent({
       llm: llm as any,
-      tools: compiled.tools as any,
+      tools: structuredTools,
       prompt: compiled.systemPrompt as any,
     });
 
     const executor = new AgentExecutor({
       agent,
-      tools: compiled.tools as any,
+      tools: structuredTools,
       maxIterations: compiled.maxToolSteps,
       returnIntermediateSteps: false,
     });

@@ -81,6 +81,10 @@ export class RoleLoader {
   private agents = new Map<string, CompiledAgent>();
   private workflows = new Map<string, WorkflowYaml>();
 
+  /** Track IDs loaded from per-user DB so they can be cleared between users */
+  private dbLoadedAgentIds = new Set<string>();
+  private dbLoadedWorkflowIds = new Set<string>();
+
   // ========== Agent loading ==========
 
   async scanAgents(dir: string): Promise<void> {
@@ -110,6 +114,16 @@ export class RoleLoader {
     const parsed = parseYaml(raw);
     const validated = AgentYamlSchema.parse(parsed);
     const compiled = this.compileAgent(validated);
+
+    // If loading from DB, track for per-user cleanup
+    if (source.startsWith("db:")) {
+      // Remove the previous DB-loaded entry for this ID if it exists
+      if (this.dbLoadedAgentIds.has(compiled.id)) {
+        this.agents.delete(compiled.id);
+      }
+      this.dbLoadedAgentIds.add(compiled.id);
+    }
+
     this.agents.set(compiled.id, compiled);
     return compiled;
   }
@@ -170,13 +184,41 @@ export class RoleLoader {
   async loadWorkflowYaml(raw: string, source: string): Promise<WorkflowYaml> {
     const parsed = parseYaml(raw);
     const validated = WorkflowYamlSchema.parse(parsed);
+
+    // If loading from DB, track for per-user cleanup
+    if (source.startsWith("db:")) {
+      if (this.dbLoadedWorkflowIds.has(validated.name)) {
+        this.workflows.delete(validated.name);
+      }
+      this.dbLoadedWorkflowIds.add(validated.name);
+    }
+
     this.workflows.set(validated.name, validated);
     return validated;
   }
 
   // ========== DB loading ==========
 
+  /**
+   * Remove all roles that were previously loaded from DB.
+   * Must be called before loading a different user's roles to prevent cross-user data leaks.
+   */
+  clearDBRoles(): void {
+    for (const id of this.dbLoadedAgentIds) {
+      this.agents.delete(id);
+    }
+    this.dbLoadedAgentIds.clear();
+
+    for (const name of this.dbLoadedWorkflowIds) {
+      this.workflows.delete(name);
+    }
+    this.dbLoadedWorkflowIds.clear();
+  }
+
   async loadFromDB(userId: string): Promise<void> {
+    // Clear any previously loaded DB roles (from a different user)
+    this.clearDBRoles();
+
     const { RoleRepo } = await import("./repo.js");
     const { getDb } = await import("../db/client.js");
 
@@ -230,6 +272,8 @@ export class RoleLoader {
   clear(): void {
     this.agents.clear();
     this.workflows.clear();
+    this.dbLoadedAgentIds.clear();
+    this.dbLoadedWorkflowIds.clear();
   }
 }
 
