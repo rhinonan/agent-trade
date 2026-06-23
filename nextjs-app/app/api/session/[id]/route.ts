@@ -4,17 +4,18 @@ import { SessionRepo } from "@/lib/db/session-repo.js";
 import { ChatRepo } from "@/lib/db/chat-repo.js";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const userId = req.headers.get("x-user-id") ?? "anonymous";
 
   try {
     const db = getDb();
     const sessionRepo = new SessionRepo(db);
     const chatRepo = new ChatRepo(db);
 
-    const session = sessionRepo.getById(id);
+    const session = sessionRepo.getById(id, userId !== "anonymous" ? userId : undefined);
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
     }
