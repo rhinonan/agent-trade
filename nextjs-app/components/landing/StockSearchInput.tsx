@@ -81,7 +81,7 @@ export function StockSearchInput({ value, onChange }: StockSearchInputProps) {
               onClick={() => handleSelect(r)}
               onMouseEnter={() => setSelectedIndex(i)}
             >
-              <span className="text-emerald-400 font-mono text-sm font-medium whitespace-nowrap">
+              <span className="text-blue-400 font-mono text-sm font-medium whitespace-nowrap">
                 {r.symbol}
               </span>
               <div className="min-w-0">

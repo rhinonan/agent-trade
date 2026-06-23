@@ -22,7 +22,7 @@ export function WorkflowSelector({ selected, onSelect }: WorkflowSelectorProps) 
             onClick={() => onSelect(wf.value)}
             className={`text-left p-3 rounded-lg border transition-colors ${
               selected === wf.value
-                ? "border-emerald-500 bg-emerald-500/10 text-emerald-300"
+                ? "border-blue-500 bg-blue-500/10 text-blue-300"
                 : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
             }`}
           >

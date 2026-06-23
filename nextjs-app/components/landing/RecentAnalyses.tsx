@@ -12,7 +12,7 @@ interface SessionSummary {
 }
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; text: string }> = {
-  RUNNING:  { dot: "bg-emerald-400 animate-pulse", label: "进行中", text: "text-emerald-400" },
+  RUNNING:  { dot: "bg-blue-400 animate-pulse", label: "进行中", text: "text-blue-400" },
   PAUSED:   { dot: "bg-amber-400", label: "已暂停", text: "text-amber-400" },
   STOPPED:  { dot: "bg-zinc-500", label: "已完成", text: "text-zinc-400" },
 };
@@ -61,7 +61,7 @@ export function RecentAnalyses() {
         <h3 className="text-sm font-medium text-zinc-400">最近分析</h3>
         <button
           onClick={() => router.push("/history")}
-          className="text-xs text-emerald-500 hover:text-emerald-400 transition-colors"
+          className="text-xs text-blue-500 hover:text-blue-400 transition-colors"
         >
           查看全部 →
         </button>
@@ -78,7 +78,7 @@ export function RecentAnalyses() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-sm text-emerald-400">{s.targetCode}</span>
+                  <span className="font-mono text-sm text-blue-400">{s.targetCode}</span>
                   {s.targetName && (
                     <span className="text-sm text-zinc-300">{s.targetName}</span>
                   )}
