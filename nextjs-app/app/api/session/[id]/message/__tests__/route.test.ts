@@ -34,7 +34,6 @@ import {
   resetSessionManager,
 } from "@/lib/chat/session-manager.js";
 import { AgentRegistry } from "@/lib/engine/registry.js";
-import { registerBuiltinAgents } from "@/lib/agents/index.js";
 
 describe("POST /api/session/[id]/message", () => {
   let repo: ChatRepo;
@@ -45,7 +44,6 @@ describe("POST /api/session/[id]/message", () => {
     const db = getMemDb();
     repo = new ChatRepo(db);
     registry = new AgentRegistry();
-    registerBuiltinAgents(registry);
     getSessionManager(repo);
   });
 

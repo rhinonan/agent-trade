@@ -1,87 +1,136 @@
-import { describe, it, expect } from "vitest";
-import {
-  AgentRegistry,
-  WorkflowScheduler,
-  createContext,
-  parseLLMJson,
-  parseSentiment,
-} from "@/lib/engine";
-import { registerBuiltinAgents } from "@/lib/agents/index.js";
-import { WORKFLOWS } from "@/lib/workflows/index.js";
+import { describe, it, expect, beforeEach } from "vitest";
+import { ChatPromptTemplate, SystemMessagePromptTemplate } from "@langchain/core/prompts";
+import { getRoleLoader, resetRoleLoader } from "@/lib/role-loader/loader.js";
+import { runWorkflow } from "@/lib/langgraph/runner.js";
+import type { WorkflowYaml } from "@/lib/role-loader/schema.js";
+import { FakeToolCallingChatModel } from "@/lib/llm/__tests__/test-utils.js";
 
-// A minimal fake chat model that returns a pre-canned JSON analysis.
-// The scheduler passes it via AnalyzeOptions.llm, and createLLM() returns it directly.
-class SmokeModel {
-  async invoke() {
-    return {
-      content: JSON.stringify({
-        conclusion: "smoke test ok",
-        confidence: 0.9,
-        sentiment: "bullish",
-        reasoning: ["测试理由1", "测试理由2"],
-      }),
-    };
-  }
+/** Pre-load a test agent into the singleton RoleLoader */
+function seedTestAgent(id: string, name: string) {
+  const loader = getRoleLoader();
+  (loader as any).agents.set(id, {
+    id,
+    name,
+    systemPrompt: ChatPromptTemplate.fromMessages([
+      SystemMessagePromptTemplate.fromTemplate(`你是${name}`),
+    ]),
+    tools: [],
+    maxToolSteps: 3,
+  });
 }
 
-describe("smoke test -- full engine pipeline", () => {
-  it("builds and executes bull-bear workflow", async () => {
-    // 1. Register all built-in agents
-    const registry = new AgentRegistry();
-    registerBuiltinAgents(registry);
-    expect(registry.size).toBeGreaterThanOrEqual(7);
-
-    // 2. Grab the pre-built bull-bear DAG
-    const dag = WORKFLOWS["bull-bear"];
-    expect(dag).toBeDefined();
-    expect(dag.steps.length).toBeGreaterThanOrEqual(3);
-
-    // 3. Execute the workflow through the scheduler with a fake LLM
-    const scheduler = new WorkflowScheduler(registry);
-    const ctx = createContext(
-      { type: "stock", code: "600519", name: "茅台" },
-      "smoke test -- full pipeline",
-      dag.name,
-    );
-    const result = await scheduler.execute(dag, ctx, {
-      llm: new SmokeModel() as any,
-    });
-
-    // 4. Assert we got findings from the pipeline
-    expect(result.findings.length).toBeGreaterThan(0);
-
-    // Each finding should have the expected shape
-    for (const f of result.findings) {
-      expect(f).toHaveProperty("step");
-      expect(f).toHaveProperty("agent");
-      expect(f).toHaveProperty("analysis");
-      expect(f.analysis).toHaveProperty("conclusion");
-      expect(f.analysis).toHaveProperty("confidence");
-      expect(f.analysis).toHaveProperty("sentiment");
-      expect(f.analysis).toHaveProperty("reasoning");
-      expect(typeof f.analysis.confidence).toBe("number");
-    }
+describe("smoke test -- LangGraph engine pipeline", () => {
+  beforeEach(() => {
+    resetRoleLoader();
   });
 
-  it("LLM parsers work correctly", () => {
-    // JSON inside markdown fenced block
-    expect(parseLLMJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
+  it("runs a single-node workflow end-to-end with a fake LLM", async () => {
+    seedTestAgent("qa", "QATester");
 
-    // JSON inside plain fenced block
-    expect(parseLLMJson('```\n{"b":2}\n```')).toEqual({ b: 2 });
+    const wf: WorkflowYaml = {
+      name: "qa-test",
+      version: "1",
+      nodes: [
+        {
+          id: "ask",
+          agent: "qa",
+          type: "standard" as const,
+          prompt: "分析 {{target}}",
+          depends_on: [],
+        },
+      ],
+    };
 
-    // Raw JSON
-    expect(parseLLMJson('{"c":3}')).toEqual({ c: 3 });
+    const result = await runWorkflow(wf, "000001", {
+      llm: new FakeToolCallingChatModel({
+        response: JSON.stringify({
+          conclusion: "买",
+          confidence: 0.87,
+          sentiment: "bullish",
+          reasoning: ["理由1", "理由2"],
+        }),
+      }),
+    });
 
-    // Invalid JSON throws (as expected)
-    expect(() => parseLLMJson("not json at all")).toThrow();
+    expect(result.findings).toHaveProperty("qa");
+    const askOutput = result.findings.qa as Record<string, unknown>;
+    expect(askOutput.conclusion).toBe("买");
+    expect(askOutput.confidence).toBe(0.87);
+    expect(askOutput.sentiment).toBe("bullish");
+    expect(result.stop_reason).toBe("");
+  });
 
-    // Sentiment parsing
-    expect(parseSentiment("bullish")).toBe("bullish");
-    expect(parseSentiment("bearish")).toBe("bearish");
-    expect(parseSentiment("neutral")).toBe("neutral");
-    expect(parseSentiment("unknown")).toBe("neutral"); // default
-    expect(parseSentiment(undefined)).toBe("neutral");
-    expect(parseSentiment(null)).toBe("neutral");
+  it("runs a multi-node parallel workflow", async () => {
+    seedTestAgent("t1", "T1");
+    seedTestAgent("t2", "T2");
+    seedTestAgent("judge", "裁判");
+
+    const wf: WorkflowYaml = {
+      name: "multi-test",
+      version: "1",
+      nodes: [
+        {
+          id: "a",
+          agent: "t1",
+          type: "standard" as const,
+          prompt: "A分析 {{target}}",
+          depends_on: [],
+        },
+        {
+          id: "b",
+          agent: "t2",
+          type: "standard" as const,
+          prompt: "B分析 {{target}}",
+          depends_on: [],
+        },
+        {
+          id: "final",
+          agent: "judge",
+          type: "standard" as const,
+          prompt: "综合 {{target}}",
+          depends_on: ["a", "b"],
+        },
+      ],
+    };
+
+    const result = await runWorkflow(wf, "600519", {
+      llm: new FakeToolCallingChatModel({
+        response: JSON.stringify({
+          conclusion: "综合结论",
+          confidence: 0.8,
+          sentiment: "bullish",
+        }),
+      }),
+    });
+
+    // All three nodes should produce findings
+    expect(result.findings).toHaveProperty("t1");
+    expect(result.findings).toHaveProperty("t2");
+    expect(result.findings).toHaveProperty("judge");
+    expect(result.stop_reason).toBe("");
+  });
+
+  it("throws when an agent is not loaded", async () => {
+    seedTestAgent("known", "Known");
+
+    const wf: WorkflowYaml = {
+      name: "bad-wf",
+      version: "1",
+      nodes: [
+        {
+          id: "x",
+          agent: "ghost",
+          type: "standard" as const,
+          prompt: "X",
+          depends_on: [],
+        },
+      ],
+    };
+
+    await expect(
+      runWorkflow(wf, "target", {
+        llm: new FakeToolCallingChatModel({ response: "{}" }),
+      }),
+    ).rejects.toThrow(/ghost/);
   });
 });

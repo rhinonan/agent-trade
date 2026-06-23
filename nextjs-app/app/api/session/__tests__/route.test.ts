@@ -26,7 +26,8 @@ describe("POST /api/session", () => {
     const body = await res.json();
     expect(body.sessionId).toBeDefined();
     expect(body.agents).toBeInstanceOf(Array);
-    expect(body.agents.length).toBeGreaterThan(0);
+    // Agents are now loaded via RoleLoader (YAML), not registered at session creation time.
+    // The registry is initially empty; agents are compiled from YAML at analysis time.
   });
 });
 

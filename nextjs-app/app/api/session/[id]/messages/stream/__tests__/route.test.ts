@@ -59,7 +59,6 @@ import {
   resetSessionManager,
 } from "@/lib/chat/session-manager.js";
 import { AgentRegistry } from "@/lib/engine/registry.js";
-import { registerBuiltinAgents } from "@/lib/agents/index.js";
 
 const testDag: WorkflowDAG = {
   name: "test",
@@ -89,7 +88,6 @@ describe("GET /api/session/[id]/messages/stream", () => {
     db = getMemDb();
     repo = new ChatRepo(db);
     registry = new AgentRegistry();
-    registerBuiltinAgents(registry);
     // Pre-initialize the singleton so GET route can call getSessionManager() without args
     getSessionManager(repo);
   });

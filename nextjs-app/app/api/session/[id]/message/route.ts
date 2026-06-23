@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "node:crypto";
 import { getSessionManager } from "@/lib/chat/session-manager.js";
+import { getDb } from "@/lib/db/client.js";
+import { ChatRepo } from "@/lib/db/chat-repo.js";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: sessionId } = await params;
-  const { content, mentionAgentIds } = await req.json();
+  const { content } = await req.json();
 
   if (!content?.trim()) {
     return NextResponse.json({ error: "Content is required" }, { status: 400 });
@@ -18,6 +21,19 @@ export async function POST(
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  const messages = await mgr.handleUserMessage(sessionId, content, mentionAgentIds ?? []);
-  return NextResponse.json({ messages });
+  // Persist the user message
+  const repo = new ChatRepo(getDb());
+  const userMsg = {
+    id: randomUUID(),
+    sessionId,
+    role: "user" as const,
+    senderId: "user",
+    senderName: "散户",
+    content,
+    metadata: null as any,
+    timestamp: Date.now(),
+  };
+  repo.insert(userMsg);
+
+  return NextResponse.json({ messages: [userMsg] });
 }

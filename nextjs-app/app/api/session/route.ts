@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
-import { WORKFLOWS } from "@/lib/workflows/index.js";
 import { AgentRegistry } from "@/lib/engine/registry.js";
-import { registerBuiltinAgents } from "@/lib/agents/index.js";
 import { getDb } from "@/lib/db/client.js";
 import { ChatRepo } from "@/lib/db/chat-repo.js";
 import { SessionRepo } from "@/lib/db/session-repo.js";
@@ -17,11 +15,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Must specify code, sector, or index" }, { status: 400 });
   }
 
-  const dag = WORKFLOWS[workflow];
-  if (!dag) {
-    return NextResponse.json({ error: `Unknown workflow: ${workflow}` }, { status: 400 });
-  }
-
   const sessionId = randomUUID();
   const userId = req.headers.get("x-user-id") ?? "anonymous";
   const db = getDb();
@@ -32,18 +25,17 @@ export async function POST(req: NextRequest) {
   if (provider) setDefaultLLMProvider(provider as any);
 
   const registry = new AgentRegistry();
-  registerBuiltinAgents(registry);
 
   mgr.createSession(
     sessionId,
     { code, sector, index, workflow, provider, model, userId },
-    dag,
+    { name: workflow, version: "1", steps: [] },
     registry,
     { provider: provider as any, modelName: model },
   );
 
-  // Start director advancing immediately (fire-and-forget loop until PAUSED/STOPPED)
-  mgr.startAutoAdvance(sessionId);
+  // Session auto-advance is handled by the LangGraph analyze API.
+  // The deprecated Director-based advance is no-oped.
 
   const agents = registry.list().map((a) => ({
     id: a.id,
@@ -52,7 +44,7 @@ export async function POST(req: NextRequest) {
     layer: a.layer,
   }));
 
-  return NextResponse.json({ sessionId, agents, workflow: dag.name });
+  return NextResponse.json({ sessionId, agents, workflow });
 }
 
 export async function DELETE(req: NextRequest) {
