@@ -1,9 +1,13 @@
+"use client";
+
 interface AgentBubbleProps {
   agent: string;
   conclusion: string;
   sentiment: string;
   confidence: number;
   timestamp: number;
+  /** Optional reasoning chain from LangGraph node output. */
+  reasoning?: string;
 }
 
 export function AgentBubble({
@@ -12,6 +16,7 @@ export function AgentBubble({
   sentiment,
   confidence,
   timestamp,
+  reasoning,
 }: AgentBubbleProps) {
   const sentimentColor =
     sentiment === "bullish"
@@ -29,6 +34,14 @@ export function AgentBubble({
         </span>
       </div>
       <p className="text-zinc-400 text-sm leading-relaxed">{conclusion}</p>
+      {reasoning && (
+        <details className="mt-2">
+          <summary className="text-xs text-zinc-500 cursor-pointer hover:text-zinc-400">
+            推理过程
+          </summary>
+          <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{reasoning}</p>
+        </details>
+      )}
     </div>
   );
 }

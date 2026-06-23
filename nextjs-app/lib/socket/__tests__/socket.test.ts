@@ -4,11 +4,16 @@ import { WS_EVENTS } from "../events.js";
 describe("WS_EVENTS", () => {
   it("defines server-emitted event names", () => {
     expect(WS_EVENTS.ANALYSIS_START).toBe("analysis:start");
+    expect(WS_EVENTS.ANALYSIS_COMPLETE).toBe("analysis:complete");
+    expect(WS_EVENTS.ANALYSIS_ERROR).toBe("analysis:error");
     expect(WS_EVENTS.STEP_START).toBe("step:start");
     expect(WS_EVENTS.STEP_COMPLETE).toBe("step:complete");
     expect(WS_EVENTS.STEP_ERROR).toBe("step:error");
-    expect(WS_EVENTS.ANALYSIS_COMPLETE).toBe("analysis:complete");
-    expect(WS_EVENTS.ANALYSIS_ERROR).toBe("analysis:error");
+    expect(WS_EVENTS.NODE_START).toBe("node:start");
+    expect(WS_EVENTS.NODE_END).toBe("node:end");
+    expect(WS_EVENTS.NODE_ERROR).toBe("node:error");
+    expect(WS_EVENTS.DEBATE_ROUND).toBe("debate:round");
+    expect(WS_EVENTS.DEBATE_YIELD).toBe("debate:yield");
   });
 
   it("defines client-emitted event names", () => {
@@ -18,8 +23,8 @@ describe("WS_EVENTS", () => {
 
   it("has all expected event names as string constants", () => {
     const values = Object.values(WS_EVENTS);
-    expect(values.length).toBe(9);
-    expect(new Set(values).size).toBe(9); // all unique
+    expect(values.length).toBe(14);
+    expect(new Set(values).size).toBe(14); // all unique
     for (const v of values) {
       expect(typeof v).toBe("string");
       expect(v.length).toBeGreaterThan(0);

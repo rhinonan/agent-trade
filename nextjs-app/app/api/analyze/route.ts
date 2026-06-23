@@ -95,23 +95,87 @@ async function runAnalysis(
 
     // ── LangGraph engine: YAML workflow → LangGraph runner ──
     const workflowYaml = await loadWorkflowYaml(dto.workflow ?? "bull-bear");
+
+    // Build lookup: nodeId → node config (agent name, type)
+    const nodeMap = new Map<string, (typeof workflowYaml.nodes)[number]>();
+    for (const node of workflowYaml.nodes) {
+      nodeMap.set(node.id, node);
+    }
+
     const langGraphResult = await runWorkflow(
       workflowYaml,
       target.code,
       { provider: dto.provider as any, modelName: dto.model },
       {
         onNodeStart: async (nodeId) => {
+          const nodeCfg = nodeMap.get(nodeId);
+          const agentName =
+            nodeCfg?.type === "debate"
+              ? nodeCfg.participants?.map((p) => p.agent).join(" vs ") ?? nodeId
+              : (nodeCfg as any)?.agent ?? nodeId;
+          const nodeType = nodeCfg?.type ?? "standard";
+
+          ns.to(sessionId).emit(WS_EVENTS.NODE_START, {
+            nodeId,
+            agentName,
+            nodeType,
+          });
+
+          // Also emit legacy step:start for backward compat
           ns.to(sessionId).emit(WS_EVENTS.STEP_START, {
             stepId: nodeId,
-            type: "standard",
-            agentIds: [nodeId],
+            type: nodeType,
+            agentIds: [agentName],
           });
         },
-        onNodeEnd: async (nodeId, _data) => {
+        onNodeEnd: async (nodeId, result) => {
+          const nodeCfg = nodeMap.get(nodeId);
+          const agentName =
+            nodeCfg?.type === "debate"
+              ? nodeCfg.participants?.map((p) => p.agent).join(" vs ") ?? nodeId
+              : (nodeCfg as any)?.agent ?? nodeId;
+
+          // Extract findings from the LangGraph state update
+          const update = result as Record<string, unknown>;
+          const findings = extractFindings(nodeId, nodeCfg, update);
+
+          ns.to(sessionId).emit(WS_EVENTS.NODE_END, {
+            nodeId,
+            agentName,
+            findings,
+          });
+
+          // Emit legacy step:complete for backward compat
           ns.to(sessionId).emit(WS_EVENTS.STEP_COMPLETE, {
             stepId: nodeId,
-            findings: [],
+            findings,
           });
+
+          // For debate nodes: emit DEBATE_ROUND events for each completed round
+          if (nodeCfg?.type === "debate" && update.round !== undefined) {
+            const totalRounds = update.round as number;
+            const msgs = (update.messages as { role: string; content: string }[]) ?? [];
+            for (let r = 0; r <= totalRounds; r++) {
+              ns.to(sessionId).emit(WS_EVENTS.DEBATE_ROUND, {
+                nodeId,
+                round: r,
+                participantLabel: msgs
+                  .filter((m, i) => i % 2 === r % 2) // rough: alternating messages map to rounds
+                  .slice(-1)
+                  .map((m) => m.role)[0] ?? `round-${r}`,
+              });
+            }
+            // Emit DEBATE_YIELD if debate ended by yield
+            if (update.stop_reason === "yield") {
+              const lastMsg = msgs[msgs.length - 1];
+              ns.to(sessionId).emit(WS_EVENTS.DEBATE_YIELD, {
+                nodeId,
+                fromAgent: lastMsg?.role ?? "unknown",
+                toAgent: msgs.length >= 2 ? msgs[msgs.length - 2].role : "unknown",
+                reason: "yield",
+              });
+            }
+          }
         },
       },
     );
@@ -157,6 +221,61 @@ async function runAnalysis(
     repo.update(sessionId, { status: "error", context: JSON.stringify({ error: (err as Error).message }) });
     ns.to(sessionId).emit(WS_EVENTS.ANALYSIS_ERROR, { message: (err as Error).message });
   }
+}
+
+/** Extract frontend-ready findings from a LangGraph state update. */
+function extractFindings(
+  nodeId: string,
+  nodeCfg: { id: string; agent?: string; participants?: { agent: string; role: string }[]; type?: string } | undefined,
+  update: Record<string, unknown>,
+): { agent: string; conclusion: string; sentiment: string; confidence: number; reasoning?: string }[] {
+  const rawFindings = (update.findings as Record<string, unknown>) ?? {};
+
+  if (nodeCfg?.type === "debate") {
+    // Debate node: findings keyed as round_N_role
+    return Object.entries(rawFindings)
+      .filter(([key]) => key.startsWith("round_"))
+      .map(([key, value]) => {
+        const v = value as Record<string, unknown> | undefined;
+        return {
+          agent: key,
+          conclusion: (v?.conclusion as string)
+            ?? (v?.argument as string)
+            ?? JSON.stringify(value).slice(0, 200),
+          sentiment: (v?.sentiment as string) ?? "neutral",
+          confidence: (v?.confidence as number) ?? 0,
+          reasoning: (v?.reasoning as string) ?? undefined,
+        };
+      });
+  }
+
+  // Standard node: findings keyed by agent id
+  const agentId = nodeCfg?.agent ?? nodeId;
+  const value = rawFindings[agentId] as Record<string, unknown> | undefined;
+  if (!value) {
+    // Fallback: find the first non-empty finding
+    for (const [k, v] of Object.entries(rawFindings)) {
+      if (v && typeof v === "object") {
+        const vv = v as Record<string, unknown>;
+        return [{
+          agent: k,
+          conclusion: (vv.conclusion as string) ?? JSON.stringify(v).slice(0, 200),
+          sentiment: (vv.sentiment as string) ?? "neutral",
+          confidence: (vv.confidence as number) ?? 0,
+          reasoning: (vv.reasoning as string) ?? undefined,
+        }];
+      }
+    }
+    return [];
+  }
+
+  return [{
+    agent: agentId,
+    conclusion: (value.conclusion as string) ?? JSON.stringify(value).slice(0, 200),
+    sentiment: (value.sentiment as string) ?? "neutral",
+    confidence: (value.confidence as number) ?? 0,
+    reasoning: (value.reasoning as string) ?? undefined,
+  }];
 }
 
 async function resolveTarget(dto: any): Promise<AnalysisTarget> {

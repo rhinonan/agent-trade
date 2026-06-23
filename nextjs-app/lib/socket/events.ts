@@ -1,12 +1,19 @@
 export const WS_EVENTS = {
-  // Server emits
+  // Server emits — analysis lifecycle
   ANALYSIS_START: "analysis:start",
-  STEP_START: "step:start",
-  STEP_COMPLETE: "step:complete",
-  STEP_ERROR: "step:error",
   ANALYSIS_COMPLETE: "analysis:complete",
   ANALYSIS_ERROR: "analysis:error",
   SESSION_STATUS: "session:status",
+  // Server emits — legacy step-level events (kept for backward compat)
+  STEP_START: "step:start",
+  STEP_COMPLETE: "step:complete",
+  STEP_ERROR: "step:error",
+  // Server emits — LangGraph node-level events
+  NODE_START: "node:start",
+  NODE_END: "node:end",
+  NODE_ERROR: "node:error",
+  DEBATE_ROUND: "debate:round",
+  DEBATE_YIELD: "debate:yield",
   // Client emits
   SUBSCRIBE: "subscribe",
   UNSUBSCRIBE: "unsubscribe",
@@ -54,4 +61,42 @@ export interface SubscribePayload {
 
 export interface UnsubscribePayload {
   sessionId: string;
+}
+
+// —— LangGraph node-level payloads ——
+
+export interface NodeStartPayload {
+  nodeId: string;
+  agentName: string;
+  nodeType: string; // "agent" | "debate" | "router"
+}
+
+export interface NodeEndPayload {
+  nodeId: string;
+  agentName: string;
+  findings: {
+    agent: string;
+    conclusion: string;
+    sentiment: string;
+    confidence: number;
+    reasoning?: string;
+  }[];
+}
+
+export interface NodeErrorPayload {
+  nodeId: string;
+  error: string;
+}
+
+export interface DebateRoundPayload {
+  nodeId: string;
+  round: number;
+  participantLabel: string;
+}
+
+export interface DebateYieldPayload {
+  nodeId: string;
+  fromAgent: string;
+  toAgent: string;
+  reason: string;
 }
