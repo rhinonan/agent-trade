@@ -53,6 +53,20 @@ describe("SessionRepo", () => {
     expect(repo.getById("s1")).toBeNull();
   });
 
+  it("deleteById returns false when session exists but userId does not match", () => {
+    repo.insert({ id: "s1", targetCode: "600519", targetName: null, targetType: "stock", workflowName: "layered", status: "RUNNING", createdAt: 1000, userId: "user-a" });
+    const result = repo.deleteById("s1", "user-b"); // wrong userId
+    expect(result).toBe(false);
+    expect(repo.getById("s1")).not.toBeNull(); // still exists
+  });
+
+  it("deleteById returns true when userId matches", () => {
+    repo.insert({ id: "s2", targetCode: "000001", targetName: null, targetType: "stock", workflowName: "bull-bear", status: "RUNNING", createdAt: 1000, userId: "user-a" });
+    const result = repo.deleteById("s2", "user-a");
+    expect(result).toBe(true);
+    expect(repo.getById("s2")).toBeNull();
+  });
+
   it("returns null for missing session", () => {
     expect(repo.getById("nonexistent")).toBeNull();
   });

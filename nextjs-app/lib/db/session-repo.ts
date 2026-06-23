@@ -57,8 +57,15 @@ export class SessionRepo {
     this.db.prepare("UPDATE sessions SET target_name = ? WHERE id = ?").run(name, id);
   }
 
-  deleteById(id: string): void {
-    this.db.prepare("DELETE FROM sessions WHERE id = ?").run(id);
+  deleteById(id: string, userId?: string): boolean {
+    let sql = "DELETE FROM sessions WHERE id = ?";
+    const params: any[] = [id];
+    if (userId) {
+      sql += " AND user_id = ?";
+      params.push(userId);
+    }
+    const result = this.db.prepare(sql).run(...params);
+    return result.changes > 0;
   }
 }
 
