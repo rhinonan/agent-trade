@@ -9,18 +9,29 @@ export default function AnalyzePage() {
   const [code, setCode] = useState("");
   const [workflow, setWorkflow] = useState("layered");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleStart() {
     if (!code.trim()) return;
     setLoading(true);
-    const res = await fetch("/api/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: code.trim(), workflow }),
-    });
-    const { sessionId } = await res.json();
-    router.push(`/session/${sessionId}`);
+    setError(null);
+    try {
+      const res = await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: code.trim(), workflow }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? `请求失败 (${res.status})`);
+      }
+      const { sessionId } = await res.json();
+      router.push(`/session/${sessionId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "请求失败，请重试");
+      setLoading(false);
+    }
   }
 
   return (
@@ -35,6 +46,9 @@ export default function AnalyzePage() {
         <div className="space-y-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
           <StockSearchInput value={code} onChange={setCode} />
           <WorkflowSelector selected={workflow} onSelect={setWorkflow} />
+          {error && (
+            <p className="text-sm text-red-400 text-center">{error}</p>
+          )}
           <button
             onClick={handleStart}
             disabled={!code.trim() || loading}

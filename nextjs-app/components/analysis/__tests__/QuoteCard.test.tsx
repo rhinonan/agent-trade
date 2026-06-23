@@ -58,4 +58,12 @@ describe("QuoteCard", () => {
     await act(() => vi.advanceTimersByTime(5000));
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("shows error message when fetch fails", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+    render(<QuoteCard code="000001" />);
+    await vi.waitFor(() => {
+      expect(screen.getByText("行情数据暂不可用")).toBeDefined();
+    });
+  });
 });

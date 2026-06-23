@@ -1,25 +1,19 @@
 "use client";
-
-interface AgentConclusion {
-  agentId: string;
-  agentName: string;
-  conclusion: string;
-  sentiment: "bullish" | "bearish" | "neutral";
-  confidence: number;
-}
+import type { AgentConclusion } from "./types.js";
 
 interface AgentSummaryProps {
   agents: AgentConclusion[];
+  finalConclusion?: string;
 }
 
-const SENTIMENT_STYLE: Record<string, string> = {
+const SENTIMENT_STYLE: Record<AgentConclusion["sentiment"], string> = {
   bullish: "border-l-emerald-500",
   bearish: "border-l-red-500",
   neutral: "border-l-zinc-500",
 };
 
-export function AgentSummary({ agents }: AgentSummaryProps) {
-  if (agents.length === 0) {
+export function AgentSummary({ agents, finalConclusion }: AgentSummaryProps) {
+  if (agents.length === 0 && !finalConclusion) {
     return (
       <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4">
         <h3 className="text-sm font-medium text-zinc-400 mb-2">Agent 结论</h3>
@@ -51,6 +45,13 @@ export function AgentSummary({ agents }: AgentSummaryProps) {
           </div>
         ))}
       </div>
+      {finalConclusion && (
+        <div className="border-b-2 border-emerald-500 pb-3">
+          <p className="text-sm text-emerald-300 leading-relaxed">
+            {finalConclusion}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

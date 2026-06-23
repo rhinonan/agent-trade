@@ -22,8 +22,8 @@ export default async function SessionPage({
       targetCode = session.targetCode;
       targetName = session.targetName;
     }
-  } catch {
-    // Non-critical — DataPanel handles missing data gracefully
+  } catch (err) {
+    console.error("Failed to fetch session info for DataPanel:", err);
   }
 
   return (
