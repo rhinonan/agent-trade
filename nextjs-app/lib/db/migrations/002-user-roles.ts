@@ -1,6 +1,6 @@
 import type Database from "better-sqlite3";
 
-export function migrate(db: Database): void {
+export function migrate(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_roles (
       id TEXT NOT NULL,

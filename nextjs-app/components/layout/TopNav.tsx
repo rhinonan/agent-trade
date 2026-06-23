@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { label: "行业拆解", href: "/industry" },
   { label: "策略回溯", href: "/backtest" },
   { label: "许愿池", href: "/wishpool" },
+  { label: "角色管理", href: "/roles" },
 ] as const;
 
 export function TopNav() {

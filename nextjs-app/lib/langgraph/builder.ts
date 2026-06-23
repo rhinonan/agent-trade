@@ -21,7 +21,7 @@ export function buildStateGraph(
   workflow: WorkflowYaml,
   loader: RoleLoader,
   llmFactory: LLMFactory,
-): StateGraph<typeof WorkflowState> {
+) {
   const graph = new StateGraph(WorkflowState);
 
   // Track which nodes are depended on (sinks → END)
@@ -51,10 +51,10 @@ export function buildStateGraph(
   // Add edges
   for (const node of workflow.nodes) {
     if ((node.depends_on ?? []).length === 0) {
-      graph.addEdge(START, node.id);
+      graph.addEdge(START as any, node.id as any);
     } else {
       for (const dep of node.depends_on!) {
-        graph.addEdge(dep, node.id);
+        graph.addEdge(dep as any, node.id as any);
       }
     }
   }
@@ -62,7 +62,7 @@ export function buildStateGraph(
   // Nodes not depended on → END
   for (const node of workflow.nodes) {
     if (!isDependedOn.has(node.id)) {
-      graph.addEdge(node.id, END);
+      graph.addEdge(node.id as any, END as any);
     }
   }
 

@@ -87,7 +87,7 @@ export async function runWorkflow(
     messages: [] as { role: string; content: string }[],
     round: 0,
     should_stop: false,
-    stop_reason: "",
+    stop_reason: "" as const,
   };
 
   let finalState = initialState;

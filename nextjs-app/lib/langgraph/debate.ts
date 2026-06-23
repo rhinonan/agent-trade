@@ -32,7 +32,7 @@ export function buildDebateSubgraph(
   config: DebateConfig,
   loader: RoleLoader,
   llmFactory: LLMFactory,
-): StateGraph<typeof WorkflowState> {
+) {
   const graph = new StateGraph(WorkflowState);
   const participants = config.participants;
 
@@ -61,18 +61,18 @@ export function buildDebateSubgraph(
   graph.addNode("increment_round", incrementRoundNode);
 
   // Edges: p1 → p2 → check
-  graph.addEdge("p1_speak", "p2_speak");
-  graph.addEdge("p2_speak", "check_yield");
+  graph.addEdge("p1_speak" as any, "p2_speak" as any);
+  graph.addEdge("p2_speak" as any, "check_yield" as any);
 
   // Conditional: continue loop or exit
-  graph.addConditionalEdges("check_yield", (state: State) => {
+  graph.addConditionalEdges("check_yield" as any, (state: State) => {
     if (state.should_stop) return END;
     if (state.round >= config.max_rounds) return END;
     return "increment_round";
   });
 
   // increment_round → p1_speak (loop back)
-  graph.addEdge("increment_round", "p1_speak");
+  graph.addEdge("increment_round" as any, "p1_speak" as any);
 
   return graph;
 }

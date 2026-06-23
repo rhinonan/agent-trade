@@ -11,7 +11,7 @@ export interface RoleRecord {
 }
 
 export class RoleRepo {
-  constructor(private db: Database) {}
+  constructor(private db: Database.Database) {}
 
   insert(role: Omit<RoleRecord, "createdAt" | "updatedAt">): void {
     const stmt = this.db.prepare(`
