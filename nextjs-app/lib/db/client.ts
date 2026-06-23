@@ -11,6 +11,7 @@ export function getDb(dbPath = "./data/agenttrade.db"): Database.Database {
     _db = new Database(dbPath);
     _db.pragma("journal_mode = WAL");
     createTables(_db);
+    runMigrations(_db);
   }
   return _db;
 }
@@ -26,9 +27,11 @@ export function createTables(db: Database.Database): void {
       status TEXT NOT NULL DEFAULT 'running',
       context TEXT NOT NULL DEFAULT '{}',
       created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      user_id TEXT NOT NULL DEFAULT 'anonymous'
     );
     CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_analyses_user_id ON analyses(user_id);
 
     CREATE TABLE IF NOT EXISTS chat_messages (
       id TEXT PRIMARY KEY,
@@ -49,8 +52,26 @@ export function createTables(db: Database.Database): void {
       target_type TEXT NOT NULL DEFAULT 'stock',
       workflow_name TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'RUNNING',
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      user_id TEXT NOT NULL DEFAULT 'anonymous'
     );
     CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
   `);
+}
+
+function runMigrations(db: Database.Database): void {
+  // Migration 002: user_id columns — idempotent via try/catch
+  // These ALTER TABLEs are no-ops on new databases (column created above),
+  // but add the column on databases created before this migration.
+  try {
+    db.exec(`ALTER TABLE analyses ADD COLUMN user_id TEXT NOT NULL DEFAULT 'anonymous'`);
+  } catch {
+    // Column already exists — safe to ignore
+  }
+  try {
+    db.exec(`ALTER TABLE sessions ADD COLUMN user_id TEXT NOT NULL DEFAULT 'anonymous'`);
+  } catch {
+    // Column already exists — safe to ignore
+  }
 }
