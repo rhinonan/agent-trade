@@ -53,4 +53,5 @@ export interface CreateSessionInput {
   provider?: string;
   model?: string;
   dataServiceUrl?: string;
+  userId?: string;
 }

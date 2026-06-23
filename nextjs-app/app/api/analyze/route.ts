@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = randomUUID();
+  const userId = req.headers.get("x-user-id") ?? "anonymous";
 
   // Save to DB
   const db = getDb();
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
     status: "running",
     context: "{}",
     createdAt: Date.now(),
+    userId,
   });
 
   // Run analysis asynchronously

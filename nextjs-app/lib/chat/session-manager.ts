@@ -76,6 +76,7 @@ export class SessionManager {
         id, targetCode: target.code, targetName: null,
         targetType: target.type, workflowName: dag.name,
         status: "RUNNING", createdAt: Date.now(),
+        userId: input.userId ?? "anonymous",
       });
 
       // Fire async lookup for stock name

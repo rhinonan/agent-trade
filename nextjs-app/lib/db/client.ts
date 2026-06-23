@@ -10,8 +10,8 @@ export function getDb(dbPath = "./data/agenttrade.db"): Database.Database {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     _db = new Database(dbPath);
     _db.pragma("journal_mode = WAL");
-    createTables(_db);
     runMigrations(_db);
+    createTables(_db);
   }
   return _db;
 }

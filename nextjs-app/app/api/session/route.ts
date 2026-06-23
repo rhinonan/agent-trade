@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionId = randomUUID();
+  const userId = req.headers.get("x-user-id") ?? "anonymous";
   const db = getDb();
   const repo = new ChatRepo(db);
   const sessionRepo = new SessionRepo(db);
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   mgr.createSession(
     sessionId,
-    { code, sector, index, workflow, provider, model },
+    { code, sector, index, workflow, provider, model, userId },
     dag,
     registry,
     { provider: provider as any, modelName: model },
