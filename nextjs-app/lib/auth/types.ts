@@ -59,3 +59,29 @@ export function getAuthAdapter(): AuthAdapter {
 export function setAuthAdapter(adapter: AuthAdapter): void {
   _adapter = adapter;
 }
+
+/** 配额钩子接口——开源仓库只定义接口，私有仓库注入实现 */
+export interface QuotaHook {
+  /**
+   * 分析开始前预扣配额。
+   * @returns true=配额已扣，false=配额不足（上游应返回 429）
+   */
+  tryConsume(userId: string): Promise<boolean>;
+
+  /**
+   * 分析失败时退还配额（仅在 tryConsume 成功后调用）。
+   * 成功完成的分析不调用此方法。
+   */
+  release(userId: string): Promise<void>;
+}
+
+/** 全局单例——默认无钩子，私有仓库调用 setQuotaHook() 注入 */
+let _quotaHook: QuotaHook | null = null;
+
+export function getQuotaHook(): QuotaHook | null {
+  return _quotaHook;
+}
+
+export function setQuotaHook(hook: QuotaHook): void {
+  _quotaHook = hook;
+}
