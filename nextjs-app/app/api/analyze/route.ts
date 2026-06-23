@@ -10,6 +10,7 @@ import type { AnalysisTarget, ExecutionContext, Finding } from "@/lib/engine/typ
 import { getDb } from "@/lib/db/client.js";
 import { AnalysisRepo } from "@/lib/db/analysis-repo.js";
 import { getQuotaHook, type QuotaHook } from "@/lib/auth/types.js";
+import { runWorkflow, loadWorkflowYaml, ensureAgentsLoaded } from "@/lib/langgraph/runner.js";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -87,15 +88,74 @@ async function runAnalysis(
       setDefaultLLMProvider(dto.provider as "anthropic" | "openai" | "deepseek");
     }
 
-    const workflowDag = WORKFLOWS[dto.workflow ?? "bull-bear"];
-    if (!workflowDag) throw new Error(`Unknown workflow: ${dto.workflow}`);
-
     const target = await resolveTarget(dto);
 
     ns.to(sessionId).emit(WS_EVENTS.ANALYSIS_START, {
       target: { type: target.type, code: target.code, name: target.name },
       workflow: dto.workflow ?? "bull-bear",
     });
+
+    // ── Engine toggle: USE_LANGGRAPH=true switches to the new LangGraph engine ──
+    const USE_LANGGRAPH = process.env.USE_LANGGRAPH === "true";
+
+    if (USE_LANGGRAPH) {
+      // === New path: YAML workflow → LangGraph runner ===
+      const workflowYaml = await loadWorkflowYaml(dto.workflow ?? "bull-bear");
+      const langGraphResult = await runWorkflow(
+        workflowYaml,
+        target.code,
+        { provider: dto.provider as any, modelName: dto.model },
+        {
+          onNodeStart: async (nodeId) => {
+            ns.to(sessionId).emit(WS_EVENTS.STEP_START, {
+              stepId: nodeId,
+              type: "standard",
+              agentIds: [nodeId],
+            });
+          },
+          onNodeEnd: async (nodeId, data) => {
+            ns.to(sessionId).emit(WS_EVENTS.STEP_COMPLETE, {
+              stepId: nodeId,
+              findings: [],
+            });
+          },
+        },
+      );
+
+      // Persist results
+      repo.update(sessionId, {
+        status: "complete",
+        context: JSON.stringify({
+          target,
+          workflowName: dto.workflow ?? "bull-bear",
+          findings: langGraphResult.findings,
+          debateRounds: [],
+        }),
+      });
+
+      ns.to(sessionId).emit(WS_EVENTS.ANALYSIS_COMPLETE, {
+        context: {
+          target,
+          workflowName: dto.workflow ?? "bull-bear",
+          findings: Object.entries(langGraphResult.findings).map(([nodeId, value]) => {
+            const v = value as Record<string, unknown> | undefined;
+            return {
+              step: nodeId,
+              agent: nodeId,
+              conclusion: (v?.conclusion as string) ?? JSON.stringify(value).slice(0, 200),
+              reasoning: (v?.reasoning as string) ?? "",
+              sentiment: (v?.sentiment as string) ?? "neutral",
+              confidence: (v?.confidence as number) ?? 0,
+              timestamp: Date.now(),
+            };
+          }),
+          debateRounds: [],
+        },
+      });
+    } else {
+      // === Old path: legacy engine (unchanged) ===
+      const workflowDag = WORKFLOWS[dto.workflow ?? "bull-bear"];
+      if (!workflowDag) throw new Error(`Unknown workflow: ${dto.workflow}`);
 
     const registry = new AgentRegistry();
     registerBuiltinAgents(registry);
@@ -153,6 +213,7 @@ async function runAnalysis(
         debateRounds: result.debateRounds,
       },
     });
+    } // End old path
   } catch (err) {
     // 失败 — 退还配额（涵盖 resolveTarget / workflow 校验 / scheduler 等所有早期失败）
     console.error(`Analysis ${sessionId} failed:`, err);
