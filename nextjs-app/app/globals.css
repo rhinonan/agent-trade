@@ -10,8 +10,8 @@ body::before {
   pointer-events: none;
   z-index: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(16, 185, 129, 0.06), transparent),
-    radial-gradient(ellipse 60% 50% at 80% 60%, rgba(20, 184, 166, 0.04), transparent);
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(59, 130, 246, 0.06), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 60%, rgba(37, 99, 235, 0.04), transparent);
   animation: glow-breathe 10s ease-in-out infinite;
 }
 
@@ -32,11 +32,11 @@ body::before {
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 .glow-hover:hover {
-  border-color: rgba(16, 185, 129, 0.3);
-  box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.1);
 }
 
 /* Title text glow */
 .text-glow {
-  text-shadow: 0 0 40px rgba(16, 185, 129, 0.3), 0 0 80px rgba(16, 185, 129, 0.1);
+  text-shadow: 0 0 40px rgba(59, 130, 246, 0.3), 0 0 80px rgba(59, 130, 246, 0.1);
 }
