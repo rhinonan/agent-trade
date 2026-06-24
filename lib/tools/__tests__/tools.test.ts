@@ -2,35 +2,32 @@ import { describe, it, expect, vi } from "vitest";
 import { klineTool } from "../kline.js";
 import { macdTool, rsiTool, maTool } from "../indicator.js";
 import type { ToolContext } from "../types.js";
-import type { DataClient } from "../../data/client.js";
+import type { AStockClient } from "../../data-sdk/client.js";
 
 function mockCtx(overrides: Partial<ToolContext> = {}): ToolContext {
   return {
     dataClient: {
-      kline: {
-        get: vi.fn().mockResolvedValue({
-          symbol: "600519",
-          period: "daily",
-          adjust: "qfq",
-          count: 120,
-          bars: [
+      market: {
+        kline: vi.fn().mockResolvedValue({
+          data: [
             { date: "2026-06-19", open: 1690, high: 1710, low: 1685, close: 1700, volume: 4500000 },
             { date: "2026-06-22", open: 1700, high: 1720, low: 1690, close: 1715, volume: 5000000 },
           ],
-        }),
-        indicators: vi.fn().mockResolvedValue({
-          symbol: "600519",
-          indicators: {
-            macd: [
-              { index: 0, dif: 5.2, dea: 4.8, histogram: 0.4 },
-              { index: 1, dif: 6.1, dea: 5.1, histogram: 1.0 },
-            ],
-            rsi: [55, 58, 62, 60],
-            ma: { "5": [1700, 1705], "10": [1690, 1695], "20": [1680, 1685] },
-          },
+          source: "tencent",
         }),
       },
-    } as unknown as DataClient,
+      fundamentals: {
+        indicators: vi.fn().mockResolvedValue({
+          macd: [
+            { index: 0, dif: 5.2, dea: 4.8, histogram: 0.4 },
+            { index: 1, dif: 6.1, dea: 5.1, histogram: 1.0 },
+          ],
+          rsi: [55, 58, 62, 60],
+          ma: { "5": [1700, 1705], "10": [1690, 1695], "20": [1680, 1685] },
+          boll: [],
+        }),
+      },
+    } as unknown as AStockClient,
     target: { type: "stock", code: "600519", name: "茅台" },
     executionState: {
       target: { type: "stock", code: "600519", name: "茅台" },
@@ -58,7 +55,8 @@ describe("klineTool", () => {
   it("uses default count of 120 when not specified", async () => {
     const ctx = mockCtx();
     await klineTool.execute({}, ctx);
-    expect(ctx.dataClient.kline.get).toHaveBeenCalledWith(
+    expect(ctx.dataClient.market.kline).toHaveBeenCalledWith(
+      "600519",
       expect.objectContaining({ count: 120 }),
     );
   });
@@ -77,19 +75,24 @@ describe("macdTool", () => {
   it("detects golden_cross when DIF crosses above DEA", async () => {
     const ctx = mockCtx({
       dataClient: {
-        kline: {
-          get: vi.fn(),
-          indicators: vi.fn().mockResolvedValue({
-            symbol: "600519",
-            indicators: {
-              macd: [
-                { index: 0, dif: 4.0, dea: 4.5, histogram: -0.5 },
-                { index: 1, dif: 5.0, dea: 4.8, histogram: 0.2 },
-              ],
-            },
+        market: {
+          kline: vi.fn().mockResolvedValue({
+            data: [{ date: "2026-06-22", open: 1700, high: 1720, low: 1690, close: 1715, volume: 5000000 }],
+            source: "tencent",
           }),
         },
-      } as unknown as DataClient,
+        fundamentals: {
+          indicators: vi.fn().mockResolvedValue({
+            macd: [
+              { index: 0, dif: 4.0, dea: 4.5, histogram: -0.5 },
+              { index: 1, dif: 5.0, dea: 4.8, histogram: 0.2 },
+            ],
+            rsi: [],
+            ma: {},
+            boll: [],
+          }),
+        },
+      } as unknown as AStockClient,
     });
     const result = await macdTool.execute({}, ctx);
     const parsed = JSON.parse(result);
@@ -99,19 +102,24 @@ describe("macdTool", () => {
   it("detects death_cross when DIF crosses below DEA", async () => {
     const ctx = mockCtx({
       dataClient: {
-        kline: {
-          get: vi.fn(),
-          indicators: vi.fn().mockResolvedValue({
-            symbol: "600519",
-            indicators: {
-              macd: [
-                { index: 0, dif: 5.5, dea: 5.0, histogram: 0.5 },
-                { index: 1, dif: 4.8, dea: 5.2, histogram: -0.4 },
-              ],
-            },
+        market: {
+          kline: vi.fn().mockResolvedValue({
+            data: [{ date: "2026-06-22", open: 1700, high: 1720, low: 1690, close: 1715, volume: 5000000 }],
+            source: "tencent",
           }),
         },
-      } as unknown as DataClient,
+        fundamentals: {
+          indicators: vi.fn().mockResolvedValue({
+            macd: [
+              { index: 0, dif: 5.5, dea: 5.0, histogram: 0.5 },
+              { index: 1, dif: 4.8, dea: 5.2, histogram: -0.4 },
+            ],
+            rsi: [],
+            ma: {},
+            boll: [],
+          }),
+        },
+      } as unknown as AStockClient,
     });
     const result = await macdTool.execute({}, ctx);
     const parsed = JSON.parse(result);
@@ -139,19 +147,24 @@ describe("maTool", () => {
     expect(parsed.alignment).toBe("bullish_alignment");
   });
 
-  it("handles 'ma5' prefixed keys for backward compatibility", async () => {
+  it("handles numeric keys from indicators", async () => {
     const ctx = mockCtx({
       dataClient: {
-        kline: {
-          get: vi.fn(),
-          indicators: vi.fn().mockResolvedValue({
-            symbol: "600519",
-            indicators: {
-              ma: { ma5: [1700, 1705], ma10: [1690, 1695], ma20: [1680, 1685], ma60: [1650, 1655] },
-            },
+        market: {
+          kline: vi.fn().mockResolvedValue({
+            data: [{ date: "2026-06-22", open: 1700, high: 1720, low: 1690, close: 1715, volume: 5000000 }],
+            source: "tencent",
           }),
         },
-      } as unknown as DataClient,
+        fundamentals: {
+          indicators: vi.fn().mockResolvedValue({
+            macd: [],
+            rsi: [],
+            ma: { "5": [1700, 1705], "10": [1690, 1695], "20": [1680, 1685], "60": [1650, 1655] },
+            boll: [],
+          }),
+        },
+      } as unknown as AStockClient,
     });
     const result = await maTool.execute({}, ctx);
     const parsed = JSON.parse(result);
