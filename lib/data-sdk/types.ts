@@ -69,7 +69,7 @@ export interface ETFQuote {
   changePct: number;
   peTtm: number;
   pb: number;
-  volume: number;
+  volume?: number;
 }
 
 // ─── Research layer ───
