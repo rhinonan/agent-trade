@@ -50,7 +50,7 @@ export default async function AnalysisPage({
           <AnalysisLiveClient sessionId={id} />
         ) : (
           <>
-            <LiveDebatePanel findings={context.findings ?? []} />
+            <LiveDebatePanel />
             {(() => {
               const judgeFinding = context.findings?.find((f: any) => f.agent === "judge");
               return judgeFinding ? (

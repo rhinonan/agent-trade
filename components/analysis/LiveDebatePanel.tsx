@@ -3,7 +3,8 @@ import { AgentBubble } from "./AgentBubble";
 import type { AgentStream } from "@/hooks/useAnalysisSocket";
 
 interface LiveDebatePanelProps {
-  agentStreams: Map<string, AgentStream>;
+  /** Stream data from a live analysis session. Omit for completed analyses. */
+  agentStreams?: Map<string, AgentStream>;
   /** Whether the analysis is still running (to show conn status). */
   isRunning?: boolean;
 }
@@ -12,7 +13,7 @@ export function LiveDebatePanel({
   agentStreams,
   isRunning,
 }: LiveDebatePanelProps) {
-  const entries = Array.from(agentStreams.values());
+  const entries = agentStreams ? Array.from(agentStreams.values()) : [];
 
   return (
     <div className="space-y-3 py-4">

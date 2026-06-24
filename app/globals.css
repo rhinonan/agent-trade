@@ -60,3 +60,59 @@ body::before {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
 }
+
+/* ── Chat Bubble Typing Indicator ── */
+
+@keyframes dot-typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+.dot-typing-bounce {
+  animation: dot-typing-bounce 1.2s ease-in-out infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .dot-typing-bounce {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* ── Blinking Cursor ── */
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.blink-cursor {
+  animation: blink-cursor 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blink-cursor {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* ── Slide-in Right (for tool cards) ── */
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
