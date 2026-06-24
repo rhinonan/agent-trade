@@ -52,8 +52,8 @@ describe("smoke test -- LangGraph engine pipeline", () => {
       }),
     });
 
-    expect(result.findings).toHaveProperty("qa");
-    const askOutput = result.findings.qa as Record<string, unknown>;
+    expect(result.findings).toHaveProperty("ask");
+    const askOutput = result.findings.ask as Record<string, unknown>;
     expect(askOutput.conclusion).toBe("买");
     expect(askOutput.confidence).toBe(0.87);
     expect(askOutput.sentiment).toBe("bullish");
@@ -103,10 +103,10 @@ describe("smoke test -- LangGraph engine pipeline", () => {
       }),
     });
 
-    // All three nodes should produce findings
-    expect(result.findings).toHaveProperty("t1");
-    expect(result.findings).toHaveProperty("t2");
-    expect(result.findings).toHaveProperty("judge");
+    // All three nodes should produce findings (keyed by node ID now)
+    expect(result.findings).toHaveProperty("a");
+    expect(result.findings).toHaveProperty("b");
+    expect(result.findings).toHaveProperty("final");
     expect(result.stop_reason).toBe("");
   });
 
