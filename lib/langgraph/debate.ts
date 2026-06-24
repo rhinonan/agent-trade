@@ -3,7 +3,7 @@ import { HumanMessage } from "@langchain/core/messages";
 import type { RoleLoader, CompiledAgent } from "../role-loader/loader.js";
 import { WorkflowState } from "./state.js";
 import { buildCheckYieldNode } from "./nodes.js";
-import { interpolateTemplate } from "../role-loader/loader.js";
+
 import type { Runnable } from "@langchain/core/runnables";
 
 type LLMFactory = () => Runnable;
@@ -167,6 +167,30 @@ function resolveDebateTemplate(
       .map(([key, value]) => `[${key}]: ${JSON.stringify(value)}`)
       .join("\n");
   });
+
+  // {{state.<node_id>.<field>}} — specific field from a node's findings
+  result = result.replace(
+    /\{\{state\.(\w+)\.(\w+)\}\}/g,
+    (_match, nodeId: string, field: string) => {
+      const finding = state.findings?.[nodeId];
+      if (finding && typeof finding === "object" && field in (finding as Record<string, unknown>)) {
+        return String((finding as Record<string, unknown>)[field]);
+      }
+      return `{{state.${nodeId}.${field}}}`; // leave unresolved if not found
+    },
+  );
+
+  // {{state.<node_id>}} — whole finding from a node
+  result = result.replace(
+    /\{\{state\.(\w+)\}\}/g,
+    (_match, nodeId: string) => {
+      const finding = state.findings?.[nodeId];
+      if (finding !== undefined) {
+        return typeof finding === "string" ? finding : JSON.stringify(finding);
+      }
+      return `{{state.${nodeId}}}`; // leave unresolved if not found
+    },
+  );
 
   return result;
 }
