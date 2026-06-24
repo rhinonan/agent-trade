@@ -177,15 +177,6 @@ export interface LockupEntry {
   unlockRatio: number;    // 占总股本比例
 }
 
-export interface SectorRanking {
-  sectorCode: string;
-  sectorName: string;
-  changePct: number;
-  upCount: number;
-  downCount: number;
-  leaderStock: string;
-}
-
 // ─── Capital layer ───
 
 export interface MarginTradingEntry {
@@ -358,5 +349,4 @@ export interface AStockClientOptions {
   timeout?: number;              // default 15000ms
   eastmoneyInterval?: number;    // default 1000ms
   eastmoneyJitter?: number;      // default 500ms
-  retryOnFailure?: boolean;      // default true (retry once on network errors)
 }

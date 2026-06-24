@@ -57,17 +57,21 @@ export function decodeGBK(buffer: ArrayBuffer): string {
 
 export class RateLimiter {
   private lastCall = 0;
-  private session: ReturnType<typeof fetch> | null = null;
-  private sessionUrl = "";
 
   constructor(
     private minIntervalMs: number = 1000,
     private jitterMs: number = 500,
   ) {}
 
-  /** Wait until the rate limit interval has passed since the last call. */
+  /**
+   * Wait until the rate limit interval has passed since the last call.
+   * Updates lastCall immediately (before waiting) to prevent concurrent
+   * invocations from both passing the rate check — avoids a TOCTOU race
+   * where two async calls read the old timestamp before either updates it.
+   */
   async wait(): Promise<void> {
     const elapsed = Date.now() - this.lastCall;
+    this.lastCall = Date.now(); // Set immediately to prevent concurrent passes
     const wait = this.minIntervalMs - elapsed;
     if (wait > 0) {
       const jitter = Math.random() * this.jitterMs;
@@ -75,9 +79,9 @@ export class RateLimiter {
     }
   }
 
-  /** Mark that a call just completed (call after response received). */
+  /** @deprecated wait() now updates lastCall immediately; separate mark() is no longer needed. */
   mark(): void {
-    this.lastCall = Date.now();
+    // No-op: lastCall is now set in wait() to close the TOCTOU window.
   }
 }
 

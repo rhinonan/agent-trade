@@ -16,7 +16,7 @@ export type {
   DataResult, KlineBar, KlineOptions, Quote, IndexQuote, ETFQuote,
   ResearchReport, IndustryReport, ResearchPDF,
   HotStock, NorthBoundFlow, ConceptBlock, FundFlowMinute,
-  DragonTigerEntry, AllDragonTigerEntry, LockupEntry, SectorInfo, SectorConstituent, SectorRanking,
+  DragonTigerEntry, AllDragonTigerEntry, LockupEntry, SectorInfo, SectorConstituent,
   MarginTradingEntry, BlockTradeEntry, ShareholderEntry, DividendEntry, FundFlowDay,
   StockNewsItem, GlobalNewsItem,
   StockInfo, BalanceSheet, IncomeStatement, CashFlowStatement,

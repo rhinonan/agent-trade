@@ -5,7 +5,7 @@
 import type { DataResult, KlineBar, KlineOptions, Quote, IndexQuote, ETFQuote,
   ResearchReport, IndustryReport, ResearchPDF, HotStock, NorthBoundFlow,
   ConceptBlock, FundFlowMinute, DragonTigerEntry, AllDragonTigerEntry,
-  LockupEntry, SectorInfo, SectorConstituent, MarginTradingEntry,
+  LockupEntry, SectorInfo, MarginTradingEntry,
   BlockTradeEntry, ShareholderEntry, DividendEntry, FundFlowDay,
   StockNewsItem, GlobalNewsItem, StockInfo, BalanceSheet, IncomeStatement,
   CashFlowStatement, Announcement, ConsensusEPS, SearchResult, AStockClientOptions } from "./types.js";
@@ -45,7 +45,7 @@ export class AStockClient {
     this.cninfo = new CninfoProvider(timeout);
     this.ths = new THSProvider(timeout);
 
-    this.market = new MarketLayer(this.tencent, this.eastmoney);
+    this.market = new MarketLayer(this.tencent);
     this.research = new ResearchLayer(this.eastmoney, this.ths);
     this.signal = new SignalLayer(this.ths, this.eastmoney);
     this.capital = new CapitalLayer(this.eastmoney);
@@ -58,17 +58,14 @@ export class AStockClient {
 // ─── Layer classes ───
 
 class MarketLayer {
-  constructor(private tencent: TencentProvider, private eastmoney: EastmoneyProvider) {}
+  constructor(private tencent: TencentProvider) {}
 
-  /** Get real-time quotes with PE/PB/market cap. Tencent (priority 1) → Eastmoney push2 fallback. */
+  /** Get real-time quotes with PE/PB/market cap from Tencent Finance. */
   async quote(codes: string[]): Promise<DataResult<Record<string, Quote>>> {
-    const r = await this.tencent.getQuotes(codes);
-    if (r.data && Object.keys(r.data).length > 0) return r;
-    // Fallback is limited — eastmoney push2 doesn't provide batch quotes the same way
-    return r;
+    return this.tencent.getQuotes(codes);
   }
 
-  /** Get K-line data with pre-computed MA. Source: Baidu (HTTP, no IP block). */
+  /** Get K-line data (OHLCV bars). Source: Baidu (HTTP, no IP block). */
   async kline(code: string, opts?: KlineOptions): Promise<DataResult<KlineBar[]>> {
     return this.tencent.getKline(code, opts);
   }

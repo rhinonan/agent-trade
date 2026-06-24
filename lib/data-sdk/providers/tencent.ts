@@ -1,6 +1,6 @@
 // lib/data-sdk/providers/tencent.ts
 // 腾讯财经 (qt.gtimg.cn) — real-time quotes, indices, ETFs, search.
-// Also includes Baidu (finance.pae.baidu.com) for K-line with MA.
+// Also includes Baidu (finance.pae.baidu.com) for K-line data.
 // Priority 1 data source — does not block IPs, no rate limit needed.
 
 import type { DataResult, Quote, IndexQuote, ETFQuote, SearchResult, KlineBar, KlineOptions } from "../types.js";

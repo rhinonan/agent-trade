@@ -52,6 +52,5 @@ export interface CreateSessionInput {
   workflow?: string;
   provider?: string;
   model?: string;
-  dataServiceUrl?: string;
   userId?: string;
 }

@@ -21,6 +21,7 @@ interface DatacenterResponse { result?: { data?: Record<string, any>[]; }; }
 interface ReportResponse { result?: { data?: Record<string, any>[]; }; }
 interface NewsResponse { result?: { cmsArticleWebOld?: Record<string, any>[]; data?: Record<string, any>[]; }; }
 
+// Single-threaded JS: ++ is atomic between await points (no concurrent writes).
 let _jsonpCounter = 0;
 
 export class EastmoneyProvider {
@@ -35,15 +36,11 @@ export class EastmoneyProvider {
   /** Shared fetch for all eastmoney endpoints — auto rate-limited. */
   private async _get(url: string, opts: RequestInit = {}): Promise<Response> {
     await this.limiter.wait();
-    try {
-      const res = await fetchWithTimeout(url, {
-        ...opts,
-        headers: { "User-Agent": UA, ...opts.headers },
-      }, this.timeout);
-      return res;
-    } finally {
-      this.limiter.mark();
-    }
+    const res = await fetchWithTimeout(url, {
+      ...opts,
+      headers: { "User-Agent": UA, ...opts.headers },
+    }, this.timeout);
+    return res;
   }
 
   /** Safe JSON parse with DataResult wrapping. */

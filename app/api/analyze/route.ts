@@ -12,7 +12,7 @@ import { runWorkflow, loadWorkflowYaml, ensureAgentsLoaded } from "@/lib/langgra
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { code, sector, index, workflow = "bull-bear", provider = "deepseek", model, dataServiceUrl } = body;
+  const { code, sector, index, workflow = "bull-bear", provider = "deepseek", model } = body;
 
   if (!code && !sector && !index) {
     return NextResponse.json({ error: "Must specify code, sector, or index" }, { status: 400 });
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   const quotaHook = getQuotaHook();
   runAnalysis(
     sessionId,
-    { code, sector, index, workflow, provider, model, dataServiceUrl, userId },
+    { code, sector, index, workflow, provider, model, userId },
     userId !== "anonymous" ? quotaHook : null
   ).catch(async (err) => {
     console.error(`Analysis ${sessionId} failed:`, err);
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
 
 async function runAnalysis(
   sessionId: string,
-  dto: { code?: string; sector?: string; index?: string; workflow?: string; provider?: string; model?: string; dataServiceUrl?: string; userId: string },
+  dto: { code?: string; sector?: string; index?: string; workflow?: string; provider?: string; model?: string; userId: string },
   quotaHook: QuotaHook | null,
 ): Promise<void> {
   const db = getDb();

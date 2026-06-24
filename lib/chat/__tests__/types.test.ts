@@ -169,7 +169,7 @@ describe("chat types (compile-time verification)", () => {
       workflow: "bull-bear",
       provider: "anthropic",
       model: "claude-3-opus",
-      dataServiceUrl: "http://localhost:3001",
+      userId: "test-user",
     };
     expect(input.code).toBe("600519");
     expect(input.workflow).toBe("bull-bear");
