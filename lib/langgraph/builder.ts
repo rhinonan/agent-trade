@@ -6,6 +6,7 @@ import { buildAgentNode } from "./nodes.js";
 import { buildDebateSubgraph } from "./debate.js";
 import { interpolateTemplate } from "../role-loader/loader.js";
 import type { Runnable } from "@langchain/core/runnables";
+import type { AStockClient } from "../data-sdk/client.js";
 
 type LLMFactory = () => Runnable;
 
@@ -21,6 +22,7 @@ export function buildStateGraph(
   workflow: WorkflowYaml,
   loader: RoleLoader,
   llmFactory: LLMFactory,
+  dataClient: AStockClient,
 ) {
   const graph = new StateGraph(WorkflowState);
 
@@ -44,7 +46,7 @@ export function buildStateGraph(
         );
       }
       const prompt = interpolateTemplate(node.prompt ?? `分析 {{target}}`);
-      graph.addNode(node.id, buildAgentNode(agent, prompt, llmFactory));
+      graph.addNode(node.id, buildAgentNode(agent, prompt, llmFactory, dataClient));
     }
   }
 

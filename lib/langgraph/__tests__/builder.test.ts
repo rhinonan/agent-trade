@@ -41,7 +41,7 @@ describe("buildStateGraph", () => {
       conclusion: "测试结论",
       confidence: 0.8,
       sentiment: "bullish",
-    })));
+    })), {} as any);
 
     expect(graph).toBeInstanceOf(StateGraph);
   });
@@ -58,7 +58,7 @@ describe("buildStateGraph", () => {
     };
 
     const loader = makeLoader();
-    const graph = buildStateGraph(wf, loader, makeFakeLLMFactory("{}"));
+    const graph = buildStateGraph(wf, loader, makeFakeLLMFactory("{}"), {} as any);
     expect(graph).toBeInstanceOf(StateGraph);
   });
 
@@ -69,6 +69,6 @@ describe("buildStateGraph", () => {
       nodes: [{ id: "x", agent: "nonexistent", type: "standard" as const, prompt: "X", depends_on: [] }],
     };
     const loader = new RoleLoader(); // Empty loader
-    expect(() => buildStateGraph(wf, loader, makeFakeLLMFactory("{}"))).toThrow(/nonexistent/);
+    expect(() => buildStateGraph(wf, loader, makeFakeLLMFactory("{}"), {} as any)).toThrow(/nonexistent/);
   });
 });

@@ -38,8 +38,8 @@ describe("agentNode", () => {
     };
 
     const { buildAgentNode } = await import("../nodes.js");
-    // buildAgentNode(compiled, taskPrompt, llmFactory)
-    const node = buildAgentNode(compiled, "分析", () => fakeLLM);
+    // buildAgentNode(compiled, taskPrompt, llmFactory, dataClient)
+    const node = buildAgentNode(compiled, "分析", () => fakeLLM, {} as any);
 
     const state = {
       target: "000001",

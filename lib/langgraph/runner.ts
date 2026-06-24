@@ -6,6 +6,7 @@ import { WorkflowYamlSchema } from "../role-loader/schema.js";
 import { getRoleLoader } from "../role-loader/loader.js";
 import { compileWorkflow } from "./compiler.js";
 import { createLLM, type AnalyzeOptions } from "../llm/create-llm.js";
+import { AStockClient } from "../data-sdk/client.js";
 
 // ——— Public interfaces ———
 
@@ -123,7 +124,8 @@ export async function runWorkflow(
   await ensureAgentsLoaded();
   const loader = getRoleLoader();
   const llmFactory = () => createLLM(options);
-  const compiled = compileWorkflow(workflow, loader, llmFactory);
+  const dataClient = new AStockClient();
+  const compiled = compileWorkflow(workflow, loader, llmFactory, dataClient);
 
   // Build a nodeId → agentName lookup from the workflow YAML.
   // Standard nodes: node.id → node.agent

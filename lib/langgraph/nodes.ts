@@ -2,11 +2,69 @@ import type { Runnable } from "@langchain/core/runnables";
 import { HumanMessage } from "@langchain/core/messages";
 import { StructuredTool, tool } from "@langchain/core/tools";
 import { createToolCallingAgent, AgentExecutor } from "langchain/agents";
+import { ChatPromptTemplate, MessagesPlaceholder } from "@langchain/core/prompts";
+import { z } from "zod";
 import type { CompiledAgent } from "../role-loader/loader.js";
 import type { WorkflowState } from "./state.js";
-import type { ToolDefinition } from "../tools/types.js";
+import type { ToolDefinition, ToolContext, PropertySchema } from "../tools/types.js";
+import type { AStockClient } from "../data-sdk/client.js";
 
 type State = typeof WorkflowState.State;
+
+// ——— JSON Schema → Zod adapter ———
+
+/**
+ * Convert a PropertySchema (plain JSON Schema object from ToolDefinition)
+ * into a real Zod schema, which is required by LangChain's `tool()` and
+ * the OpenAI `bindTools` / `zodToJsonSchema` pipeline.
+ */
+function propertySchemaToZod(prop: PropertySchema): z.ZodTypeAny {
+  let base: z.ZodTypeAny;
+  switch (prop.type) {
+    case "string":
+      base = z.string();
+      break;
+    case "number":
+      base = z.number();
+      break;
+    case "boolean":
+      base = z.boolean();
+      break;
+    case "array":
+      base = z.array(prop.items ? propertySchemaToZod(prop.items) : z.string());
+      break;
+    case "object":
+      // For generic objects, use z.record — specific object shapes
+      // with nested properties would need the full parameters shape,
+      // but tools don't use nested objects currently.
+      base = z.record(z.any());
+      break;
+    default:
+      base = z.string();
+  }
+  if (prop.description) base = base.describe(prop.description);
+  if (prop.enum && prop.type === "string") {
+    base = z.enum(prop.enum as [string, ...string[]]);
+    if (prop.description) base = base.describe(prop.description);
+  }
+  return base;
+}
+
+/**
+ * Convert a ToolDefinition's `parameters` block into a Zod object schema.
+ */
+function parametersToZodSchema(params: ToolDefinition["parameters"]): z.ZodObject<any> {
+  const shape: Record<string, z.ZodTypeAny> = {};
+  for (const [key, prop] of Object.entries(params.properties)) {
+    let field = propertySchemaToZod(prop);
+    // Make the field optional if not in the required list
+    if (!params.required.includes(key)) {
+      field = field.optional();
+    }
+    shape[key] = field;
+  }
+  return z.object(shape);
+}
 
 // ——— Tool Definition → LangChain StructuredTool adapter ———
 
@@ -14,22 +72,19 @@ type State = typeof WorkflowState.State;
  * Convert our internal ToolDefinition to a LangChain StructuredTool.
  * This bridges the gap between YAML-declared tools and LangChain's tool-calling agent.
  */
-function toolDefinitionToStructuredTool(td: ToolDefinition): StructuredTool {
+function toolDefinitionToStructuredTool(
+  td: ToolDefinition,
+  ctx: ToolContext,
+): StructuredTool {
   return tool(
     async (params: Record<string, unknown>) => {
-      // Minimal context — real context injection happens in the tool-calling path
-      const result = await td.execute(params, {
-        dataClient: undefined as any,
-        target: { type: "stock", code: "" },
-        executionState: {} as any,
-        signal: new AbortController().signal,
-      });
+      const result = await td.execute(params, ctx);
       return result;
     },
     {
       name: td.name,
       description: td.description,
-      schema: td.parameters as any,
+      schema: parametersToZodSchema(td.parameters),
     },
   );
 }
@@ -106,9 +161,18 @@ export function buildAgentNode(
   compiled: CompiledAgent,
   taskPrompt: string,
   llmFactory: () => Runnable,
+  dataClient: AStockClient,
 ) {
   return async (state: State): Promise<Partial<State>> => {
     const llm = llmFactory();
+
+    // Build ToolContext with real dataClient and the current analysis target
+    const toolCtx: ToolContext = {
+      dataClient,
+      target: { type: "stock", code: state.target },
+      executionState: {} as any,
+      signal: new AbortController().signal,
+    };
 
     // Interpolate all state variables in the task prompt
     const resolvedPrompt = resolveStateVariables(taskPrompt, state);
@@ -150,12 +214,23 @@ export function buildAgentNode(
     }
 
     // Tool path: convert ToolDefinition[] → StructuredTool[], then invoke
-    const structuredTools = compiled.tools.map(toolDefinitionToStructuredTool);
+    const structuredTools = compiled.tools.map((td) =>
+      toolDefinitionToStructuredTool(td, toolCtx),
+    );
+
+    // Build a full prompt with agent_scratchpad (required by createToolCallingAgent).
+    // compiled.systemPrompt is a ChatPromptTemplate containing the system message;
+    // we extend it with {input} and a MessagesPlaceholder for tool call history.
+    const agentPrompt = ChatPromptTemplate.fromMessages([
+      ...compiled.systemPrompt.promptMessages,
+      ["human", "{input}"],
+      new MessagesPlaceholder("agent_scratchpad"),
+    ]);
 
     const agent = createToolCallingAgent({
       llm: llm as any,
       tools: structuredTools,
-      prompt: compiled.systemPrompt as any,
+      prompt: agentPrompt,
     });
 
     const executor = new AgentExecutor({
