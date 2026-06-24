@@ -6,6 +6,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { getDb } from "@/lib/db/client.js";
 import { AnalysisRepo } from "@/lib/db/analysis-repo.js";
 import { AnalysisLiveClient } from "./client";
+import { StaticFindingsPanel } from "./static-panel";
 
 export default async function AnalysisPage({
   params,
@@ -49,20 +50,13 @@ export default async function AnalysisPage({
         {isRunning ? (
           <AnalysisLiveClient sessionId={id} />
         ) : (
-          <>
-            <LiveDebatePanel />
-            {(() => {
+          <StaticFindingsPanel
+            findings={context.findings ?? []}
+            judgeAnalysis={(() => {
               const judgeFinding = context.findings?.find((f: any) => f.agent === "judge");
-              return judgeFinding ? (
-                <ConclusionCard
-                  conclusion={judgeFinding.analysis.conclusion}
-                  reasoning={judgeFinding.analysis.reasoning}
-                  sentiment={judgeFinding.analysis.sentiment}
-                  confidence={judgeFinding.analysis.confidence}
-                />
-              ) : null;
+              return judgeFinding?.analysis ?? null;
             })()}
-          </>
+          />
         )}
       </div>
 

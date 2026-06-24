@@ -23,8 +23,8 @@ describe("WS_EVENTS", () => {
 
   it("has all expected event names as string constants", () => {
     const values = Object.values(WS_EVENTS);
-    expect(values.length).toBe(14);
-    expect(new Set(values).size).toBe(14); // all unique
+    expect(values.length).toBe(18);
+    expect(new Set(values).size).toBe(18); // all unique
     for (const v of values) {
       expect(typeof v).toBe("string");
       expect(v.length).toBeGreaterThan(0);

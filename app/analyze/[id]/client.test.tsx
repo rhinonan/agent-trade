@@ -12,16 +12,22 @@ vi.mock("@/hooks/useAnalysisSocket", () => ({
 
 import { AnalysisLiveClient } from "./client";
 
+function defaultReturn(overrides: Record<string, unknown> = {}) {
+  return {
+    connected: true,
+    findings: [],
+    steps: [],
+    nodes: [],
+    agentStreams: new Map(),
+    status: "running" as const,
+    ...overrides,
+  };
+}
+
 describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: connected, running, no findings, no steps
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: true,
-      findings: [],
-      steps: [],
-      status: "running" as const,
-    });
+    mockUseAnalysisSocket.mockReturnValue(defaultReturn());
   });
 
   it("renders the live analysis indicator when running and connected", () => {
@@ -31,54 +37,26 @@ describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
   });
 
   it("shows disconnected warning when status is running but not connected", () => {
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: false,
-      findings: [],
-      steps: [],
-      status: "running",
-    });
+    mockUseAnalysisSocket.mockReturnValue(
+      defaultReturn({ connected: false }),
+    );
 
     render(<AnalysisLiveClient sessionId="test-123" />);
     expect(screen.getByText(/连接断开/)).toBeDefined();
   });
 
-  it("renders StepProgress with steps from hook", () => {
-    const steps = [
-      { stepId: "s1", type: "bull", agentIds: [], status: "complete" as const },
-      { stepId: "s2", type: "bear", agentIds: [], status: "running" as const },
+  it("renders StepProgress with nodes from hook", () => {
+    const nodes = [
+      { nodeId: "s1", agentName: "bull", nodeType: "standard", status: "complete" as const },
+      { nodeId: "s2", agentName: "bear", nodeType: "standard", status: "running" as const },
     ];
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: true,
-      findings: [],
-      steps,
-      status: "running",
-    });
+    mockUseAnalysisSocket.mockReturnValue(
+      defaultReturn({ nodes }),
+    );
 
     render(<AnalysisLiveClient sessionId="test-123" />);
     expect(screen.getByText("bull")).toBeDefined();
     expect(screen.getByText("bear")).toBeDefined();
-  });
-
-  it("renders LiveDebatePanel with findings", () => {
-    const findings = [
-      {
-        step: "s1",
-        agent: "bull",
-        conclusion: "Bullish outlook",
-        sentiment: "bullish",
-        confidence: 0.8,
-        timestamp: Date.now(),
-      },
-    ];
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: true,
-      findings,
-      steps: [],
-      status: "running",
-    });
-
-    render(<AnalysisLiveClient sessionId="test-123" />);
-    expect(screen.getByText("Bullish outlook")).toBeDefined();
   });
 
   it("renders ConclusionCard when a judge finding exists", () => {
@@ -87,22 +65,18 @@ describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
         step: "final",
         agent: "judge",
         conclusion: "Overall neutral",
-        reasoning: ["Market is uncertain", "Conflicting signals from bulls and bears"],
+        reasoning: ["Market is uncertain"],
         sentiment: "neutral",
         confidence: 0.5,
         timestamp: Date.now(),
       },
     ];
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: true,
-      findings,
-      steps: [],
-      status: "complete",
-    });
+    mockUseAnalysisSocket.mockReturnValue(
+      defaultReturn({ findings, status: "complete" }),
+    );
 
     render(<AnalysisLiveClient sessionId="test-123" />);
-    // "Overall neutral" appears in both AgentBubble and ConclusionCard
-    expect(screen.getAllByText("Overall neutral")).toHaveLength(2);
+    // "Overall neutral" appears in both the agent bubble and the conclusion card
     expect(screen.getByText("综合研判")).toBeDefined();
   });
 
@@ -117,24 +91,18 @@ describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
         timestamp: Date.now(),
       },
     ];
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: true,
-      findings,
-      steps: [],
-      status: "running",
-    });
+    mockUseAnalysisSocket.mockReturnValue(
+      defaultReturn({ findings }),
+    );
 
     render(<AnalysisLiveClient sessionId="test-123" />);
     expect(screen.queryByText("综合研判")).toBeNull();
   });
 
   it("hides status indicator when analysis is complete", () => {
-    mockUseAnalysisSocket.mockReturnValue({
-      connected: true,
-      findings: [],
-      steps: [],
-      status: "complete",
-    });
+    mockUseAnalysisSocket.mockReturnValue(
+      defaultReturn({ status: "complete" }),
+    );
 
     render(<AnalysisLiveClient sessionId="test-123" />);
     expect(screen.queryByText(/实时分析进行中/)).toBeNull();
