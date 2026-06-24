@@ -5,6 +5,7 @@ import type { ToolDefinition } from "./types.js";
 
 export { klineTool } from "./kline.js";
 export { macdTool, rsiTool, maTool } from "./indicator.js";
+export { webSearchTool } from "./web-search.js";
 export type { ToolDefinition, ToolContext, PropertySchema } from "./types.js";
 
 // ─── Real tool implementations using AStockClient ───

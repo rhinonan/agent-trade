@@ -1,4 +1,4 @@
-import type { ToolDefinition } from "./types.js";
+import type { ToolDefinition, ToolContext } from "./types.js";
 
 export const webSearchTool: ToolDefinition = {
   name: "web-search",
@@ -16,7 +16,7 @@ export const webSearchTool: ToolDefinition = {
     },
     required: ["query"],
   },
-  async execute(params) {
+  async execute(params, ctx: ToolContext) {
     const apiKey = process.env.WEB_SEARCH_API_KEY;
     if (!apiKey) {
       return JSON.stringify({
@@ -30,10 +30,8 @@ export const webSearchTool: ToolDefinition = {
       return JSON.stringify({ error: "query is required and must be non-empty" });
     }
 
+    const timeout = setTimeout(() => {}, 15_000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15_000);
-
       const response = await fetch("https://api.volcengine.com/web_search/v1/query", {
         method: "POST",
         headers: {
@@ -44,10 +42,8 @@ export const webSearchTool: ToolDefinition = {
           query: query.trim(),
           stream: false,
         }),
-        signal: controller.signal,
+        signal: ctx.signal,
       });
-
-      clearTimeout(timeout);
 
       if (!response.ok) {
         const body = await response.text().catch(() => "");
@@ -66,6 +62,8 @@ export const webSearchTool: ToolDefinition = {
       return JSON.stringify({
         error: `Web search failed: ${(err as Error).message}`,
       });
+    } finally {
+      clearTimeout(timeout);
     }
   },
 };
