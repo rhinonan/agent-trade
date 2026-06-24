@@ -10,6 +10,7 @@ export default function AnalyzePage() {
   const [workflow, setWorkflow] = useState("layered");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const router = useRouter();
 
   async function handleStart() {
@@ -37,19 +38,40 @@ export default function AnalyzePage() {
   return (
     <main className="relative z-10 min-h-[calc(100vh-3.5rem)] flex flex-col md:flex-row">
       {/* Left: Recent history */}
-      <aside className="md:w-[40%] lg:w-[35%] border-b md:border-b-0 md:border-r border-zinc-800 p-4 md:p-6 overflow-y-auto max-h-[50vh] md:max-h-[calc(100vh-3.5rem)]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-zinc-400">历史记录</h2>
+      <aside className="md:w-[40%] lg:w-[35%] border-b md:border-b-0 md:border-r border-zinc-800 md:overflow-y-auto md:max-h-[calc(100vh-3.5rem)]">
+        {/* Mobile: collapsible toggle */}
+        <div className="md:hidden">
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/30 transition-colors"
+          >
+            <span className="flex items-center gap-2">
+              <span>{historyOpen ? "▾" : "▸"}</span>
+              历史记录
+            </span>
+            <span className="text-xs text-zinc-600">最近 5 条</span>
+          </button>
+          {historyOpen && (
+            <div className="px-4 pb-4 border-b border-zinc-800">
+              <RecentAnalyses />
+            </div>
+          )}
+        </div>
+        {/* Desktop: always visible */}
+        <div className="hidden md:block p-4 md:p-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-zinc-400">历史记录</h2>
+            </div>
+            <RecentAnalyses />
           </div>
-          <RecentAnalyses />
         </div>
       </aside>
 
       {/* Right: Input form */}
       <section className="flex-1 flex items-start justify-center p-4 md:p-8 md:pt-12">
         <div className="w-full max-w-lg space-y-6">
-          <div className="space-y-6 bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
+          <div className="space-y-6 md:bg-zinc-900/50 md:border md:border-zinc-800 md:rounded-xl md:p-6">
             <StockSearchInput value={code} onChange={setCode} />
             <WorkflowSelector selected={workflow} onSelect={setWorkflow} />
             {error && (
