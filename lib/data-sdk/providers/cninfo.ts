@@ -5,6 +5,20 @@
 import type { DataResult, Announcement } from "../types.js";
 import { normalizeCode, fetchWithTimeout } from "../utils.js";
 
+interface CninfoRecord {
+  announcementId?: string;
+  id?: string;
+  announcementTitle?: string;
+  title?: string;
+  publishDate?: string;
+  announcementTime?: string;
+  secCode?: string;
+  secName?: string;
+  announcementType?: string;
+  summary?: string;
+  adjunctUrl?: string;
+}
+
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
 const BASE_URL = "https://webapi.cninfo.com.cn/api/sysapi/p_sysapi1000";
 
@@ -50,7 +64,7 @@ export class CninfoProvider {
 
       const d = await res.json();
       const records = d?.records ?? d?.data ?? [];
-      const items: Announcement[] = (Array.isArray(records) ? records : []).map((r: any) => ({
+      const items: Announcement[] = (Array.isArray(records) ? records : []).map((r: CninfoRecord) => ({
         id: r.announcementId ?? r.id ?? "",
         title: r.announcementTitle ?? r.title ?? "",
         publishDate: r.publishDate ?? r.announcementTime ?? "",
