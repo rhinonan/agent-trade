@@ -1,5 +1,6 @@
 import { klineTool } from "./kline.js";
 import { macdTool, rsiTool, maTool } from "./indicator.js";
+import { webSearchTool } from "./web-search.js";
 import type { ToolDefinition } from "./types.js";
 
 export { klineTool } from "./kline.js";
@@ -290,4 +291,5 @@ export const toolsByName = new Map<string, ToolDefinition>([
   ["social_sentiment", socialSentimentTool],
   ["volume", volumeTool],
   ["indicator", indicatorTool],
+  ["web_search", webSearchTool],
 ]);
