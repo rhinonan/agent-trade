@@ -24,11 +24,11 @@ export interface WorkflowRunCallbacks {
 // ——— YAML loading ———
 
 /**
- * Resolve the roles directory relative to the Next.js app cwd.
- * Roles live at <repo-root>/roles/; nextjs-app is one level down.
+ * Resolve the roles directory relative to the repo root.
+ * Roles live at <repo-root>/roles/.
  */
 function resolveRolesDir(): string {
-  return path.resolve(process.cwd(), "..", "roles");
+  return path.resolve(process.cwd(), "roles");
 }
 
 /**
