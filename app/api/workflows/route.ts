@@ -5,7 +5,7 @@ import { load as parseYaml } from "js-yaml";
 import { WorkflowYamlSchema } from "@/lib/role-loader/schema.js";
 
 function resolveRolesDir(): string {
-  return path.resolve(process.cwd(), "..", "roles");
+  return path.resolve(process.cwd(), "roles");
 }
 
 export async function GET() {

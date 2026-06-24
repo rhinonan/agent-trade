@@ -33,6 +33,7 @@ describe("runWorkflow", () => {
 
     const wf: WorkflowYaml = {
       name: "qa-test",
+      version: "1.0",
       nodes: [
         {
           id: "ask",
@@ -69,6 +70,7 @@ describe("runWorkflow", () => {
 
     const wf: WorkflowYaml = {
       name: "parallel-test",
+      version: "1.0",
       nodes: [
         {
           id: "a",
@@ -118,6 +120,7 @@ describe("runWorkflow", () => {
 
     const wf: WorkflowYaml = {
       name: "bad-wf",
+      version: "1.0",
       nodes: [
         {
           id: "x",

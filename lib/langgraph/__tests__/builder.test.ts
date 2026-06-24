@@ -9,6 +9,7 @@ import { FakeToolCallingChatModel } from "../../llm/__tests__/test-utils.js";
 // A simple workflow: one node, no depends_on
 const simpleWorkflow: WorkflowYaml = {
   name: "simple",
+  version: "1.0",
   nodes: [
     { id: "step1", agent: "tech", type: "standard" as const, prompt: "分析 {{target}}", depends_on: [] },
   ],
@@ -48,6 +49,7 @@ describe("buildStateGraph", () => {
   it("builds a DAG with parallel nodes and a depends_on sink", () => {
     const wf: WorkflowYaml = {
       name: "parallel-test",
+      version: "1.0",
       nodes: [
         { id: "a", agent: "tech", type: "standard" as const, prompt: "A", depends_on: [] },
         { id: "b", agent: "tech", type: "standard" as const, prompt: "B", depends_on: [] },
@@ -63,6 +65,7 @@ describe("buildStateGraph", () => {
   it("throws on unknown agent reference", () => {
     const wf: WorkflowYaml = {
       name: "bad",
+      version: "1.0",
       nodes: [{ id: "x", agent: "nonexistent", type: "standard" as const, prompt: "X", depends_on: [] }],
     };
     const loader = new RoleLoader(); // Empty loader

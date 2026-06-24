@@ -4,6 +4,7 @@ import { ChatPromptTemplate, SystemMessagePromptTemplate } from "@langchain/core
 import { FakeToolCallingChatModel } from "../../llm/__tests__/test-utils.js";
 
 // Mirror of WorkflowState for test isolation (avoids coupling to the real state module)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const TestState = Annotation.Root({
   target: Annotation<string>,
   task: Annotation<string>,
@@ -11,6 +12,7 @@ const TestState = Annotation.Root({
   messages: Annotation<{ role: string; content: string }[]>,
   round: Annotation<number>,
   should_stop: Annotation<boolean>,
+  stop_reason: Annotation<"yield" | "max_rounds" | "">,
 });
 
 describe("agentNode", () => {
@@ -46,6 +48,7 @@ describe("agentNode", () => {
       messages: [],
       round: 0,
       should_stop: false,
+      stop_reason: "" as const,
     };
 
     const result = await node(state);
@@ -69,6 +72,7 @@ describe("checkYieldNode", () => {
       messages: [],
       round: 1,
       should_stop: false,
+      stop_reason: "" as const,
     };
 
     const result = await node(state);
@@ -89,6 +93,7 @@ describe("checkYieldNode", () => {
       messages: [],
       round: 1,
       should_stop: false,
+      stop_reason: "" as const,
     };
 
     const result = await node(state);
