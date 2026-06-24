@@ -11,10 +11,10 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import http from "node:http";
 
-// Load .env from repo root (nextjs-app/../.env)
+// Load .env from repo root
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, "..");
-const repoRoot = resolve(__dirname, "../../..");
+const repoRoot = resolve(__dirname, "../..");
 dotenv.config({ path: resolve(repoRoot, ".env") });
 
 const PORT = 3098;
