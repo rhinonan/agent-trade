@@ -1,0 +1,68 @@
+name: earnings-debate
+description: 财报多空对决 — 自动搜集财报数据，超预期多方先发/低于预期空方先发，深度自由辩论，旁白总结
+version: "1.0"
+
+nodes:
+  - id: research
+    agent: earnings-researcher
+    prompt: |
+      请搜索 {{target}} 的最新财报数据，完成以下任务：
+
+      1. 搜索最新季度/年度财报核心数据：营收、净利润、扣非净利润、
+         毛利率、净利率、ROE、经营现金流、资产负债率、存货周转
+      2. 搜索机构一致预期（各券商对营收/利润的预测均值）
+      3. 对比实际业绩 vs 机构预期，判断是否超预期
+      4. 搜索行业背景和近期重大事件
+      5. 整理成一份财报简报
+
+      输出必须包含：
+      - earnings_brief: 财报核心数据摘要（引用具体数字）
+      - meets_expectations: true(符合或超预期) / false(低于预期)
+      - key_metrics: 关键财务指标对比
+
+  - id: debate
+    type: debate
+    depends_on: [research]
+    participants:
+      - agent: earnings-bull
+        role: 多方
+      - agent: earnings-bear
+        role: 空方
+    max_rounds: 50
+    stop_when:
+      field: yield
+      condition: any
+    prompt_template: |
+      你是{{role}}分析师。当前是第{{round}}轮辩论。
+
+      ## 财报数据基础
+      {{state.research}}
+
+      ## 对方上一轮观点
+      {{opponent.last_argument}}
+
+      ## 你的任务
+      1. 针对对方论点进行精准反驳（如果对方数据有误，直接指出正确数据）
+      2. 引用具体的财务数据支撑你的立场
+      3. 从新的角度展开论述（业务模式、竞争格局、估值逻辑、行业周期等）
+      4. 如果对方论据更有说服力，可以认输（yield: true）
+
+      ## 要求
+      - 每次发言300-500字，信息密度要高
+      - 必须引用具体数字，不能泛泛而谈
+      - 风格：像两位资深基金经理在投委会上辩论
+
+  - id: narrator
+    agent: narrator
+    depends_on: [debate]
+    prompt: |
+      辩论已结束。结束原因：{{debate.stop_reason}}，共{{debate.total_rounds}}轮。
+
+      完整辩论记录：
+      {{debate.messages}}
+
+      请完成以下任务：
+      1. 用通俗易懂的口语总结双方核心分歧点
+      2. 提炼出对投资者最有价值的3-5个关键问题
+      3. 以开放式问题结尾
+      4. 附加风险提示："以上仅为商业逻辑拆解，不构成任何投资建议，投资有风险，决策需谨慎。"
