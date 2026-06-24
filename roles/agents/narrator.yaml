@@ -40,4 +40,4 @@ model:
   model: deepseek-chat
   temperature: 0.8
 
-max_tool_steps: 0
+max_tool_steps: 1

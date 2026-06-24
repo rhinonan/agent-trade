@@ -43,8 +43,8 @@ output_schema:
     type: boolean
     description: "是否达到或超过机构一致预期。true=符合或超预期，false=低于预期"
   key_metrics:
-    type: object
-    description: "关键财务指标集合，包含营收/净利润/毛利率/ROE/现金流/负债率等及其同比变化"
+    type: string
+    description: "关键财务指标（JSON格式），包含营收/净利润/毛利率/ROE/现金流/负债率等及其同比变化"
 
 model:
   provider: deepseek
