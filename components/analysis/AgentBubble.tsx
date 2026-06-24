@@ -58,7 +58,7 @@ export function AgentBubble({ stream, onRevealDone }: AgentBubbleProps) {
         {showTools && stream.toolCalls.length > 0 && (
           <div className="space-y-0.5 mb-2">
             {stream.toolCalls.map((tc) => {
-              const tr = stream.toolResults.get(tc.tool);
+              const tr = stream.toolResults.get(`${tc.tool}-${tc.ts}`);
               return (
                 <ToolCallCard
                   key={`${tc.tool}-${tc.ts}`}

@@ -378,7 +378,7 @@ export function useAnalysisSocket(sessionId: string) {
         const existing = next.get(payload.nodeId);
         if (existing) {
           const newResults = new Map(existing.toolResults);
-          newResults.set(payload.tool, {
+          newResults.set(`${payload.tool}-${payload.ts}`, {
             tool: payload.tool,
             result: payload.result,
             ts: payload.ts,

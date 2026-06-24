@@ -116,3 +116,14 @@ body::before {
     opacity: 1;
   }
 }
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-in-right {
+    animation: none;
+    opacity: 1;
+  }
+}

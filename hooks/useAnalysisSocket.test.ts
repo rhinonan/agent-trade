@@ -398,7 +398,7 @@ describe("useAnalysisSocket", () => {
     });
 
     const stream = result.current.agentStreams.get("bull-analysis");
-    const tr = stream!.toolResults.get("get_kline");
+    const tr = stream!.toolResults.get("get_kline-2000");
     expect(tr).toBeDefined();
     expect(tr!.result).toBe('{"data": [1,2,3]}');
   });
