@@ -5,14 +5,18 @@ import { LiveDebatePanel } from "@/components/analysis/LiveDebatePanel";
 import { ConclusionCard } from "@/components/analysis/ConclusionCard";
 
 export function AnalysisLiveClient({ sessionId }: { sessionId: string }) {
-  const { connected, findings, steps, nodes, debateRounds, yields, status } = useAnalysisSocket(sessionId);
+  const { connected, findings, steps, nodes, agentStreams, status } =
+    useAnalysisSocket(sessionId);
 
   const judgeFinding = findings.find((f) => f.agent === "judge");
 
   return (
     <div>
       <StepProgress steps={steps} nodes={nodes} />
-      <LiveDebatePanel findings={findings} />
+      <LiveDebatePanel
+        agentStreams={agentStreams}
+        isRunning={status === "running"}
+      />
       {judgeFinding && (
         <ConclusionCard
           conclusion={judgeFinding.conclusion}
