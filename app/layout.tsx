@@ -5,6 +5,9 @@ import { TopNav } from "@/components/layout/TopNav.js";
 export const metadata: Metadata = {
   title: "AgentTrade",
   description: "多Agent对抗行情分析",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

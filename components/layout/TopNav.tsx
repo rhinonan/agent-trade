@@ -43,9 +43,13 @@ export function TopNav() {
         {/* Brand */}
         <Link
           href="/"
-          className="text-lg font-bold tracking-tight text-blue-400 hover:text-blue-300 transition-colors shrink-0"
+          className="flex items-center gap-2 shrink-0"
         >
-          AgentTrade
+          <img
+            src="/logo.png"
+            alt="AgentTrade"
+            className="h-8 w-auto"
+          />
         </Link>
 
         {/* Desktop nav items */}
