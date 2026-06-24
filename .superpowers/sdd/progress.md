@@ -222,3 +222,4 @@ Task 4.2: complete (commits 41b2d1f..08fdc3c, review clean — 5/5 pass, middlew
 Task 4.3: complete (commits 08fdc3c..265fd37, review clean — build passes, 6 tsc fixes)
 Task 4.4: complete (commits 265fd37..2e3cf6f, review clean — loadFromDB + scanWorkflows, 271 pass)
 Final review fixes: complete (commits 2e3cf6f..dd1d0ef, C1+C2+I1-I6 fixed, 271 pass, zero regressions)
+Task 1: complete (commits 90e31ed..35a3ce3, review clean) — 2026-06-24
