@@ -25,19 +25,19 @@ export default function HomePage() {
     <div className="relative z-10 min-h-screen flex flex-col">
       {/* ── Hero ── */}
       <section className="flex-1 flex flex-col items-center justify-center px-4 pt-24 pb-12">
-        <h1 className="text-6xl font-bold tracking-tight text-blue-400 text-glow">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-blue-400 text-glow">
           AgentTrade
         </h1>
-        <p className="mt-4 text-xl text-zinc-300 font-medium">
+        <p className="mt-4 text-lg sm:text-xl text-zinc-300 font-medium">
           多 Agent 对抗行情分析
         </p>
-        <p className="mt-3 text-zinc-500 max-w-md text-center leading-relaxed">
+        <p className="mt-3 text-zinc-500 max-w-sm sm:max-w-md text-center leading-relaxed">
           基于 LLM 多智能体协作的 A 股深度分析平台，
           让多个 AI 分析师从不同视角审视每一笔交易机会
         </p>
         <Link
           href="/analyze"
-          className="mt-8 inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-lg transition-colors shadow-lg shadow-blue-600/20"
+          className="mt-8 inline-flex items-center gap-2 px-6 py-3 sm:px-8 sm:py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-lg transition-colors shadow-lg shadow-blue-600/20"
         >
           开始分析
           <span className="text-blue-200">→</span>
