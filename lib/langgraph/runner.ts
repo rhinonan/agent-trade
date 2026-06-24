@@ -20,6 +20,9 @@ export interface WorkflowRunCallbacks {
   onNodeStart?(nodeId: string, agentName: string): Promise<void>;
   onNodeEnd?(nodeId: string, result: unknown): Promise<void>;
   onStreamChunk?(chunk: string): Promise<void>;
+  onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
+  onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
+  onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
 }
 
 // ——— YAML loading ———
@@ -127,7 +130,11 @@ export async function runWorkflow(
   const loader = getRoleLoader();
   const llmFactory = () => createLLM(options);
   const dataClient = new AStockClient();
-  const compiled = compileWorkflow(workflow, loader, llmFactory, dataClient);
+  const compiled = compileWorkflow(workflow, loader, llmFactory, dataClient, {
+    onToolCall: callbacks.onToolCall,
+    onToolResult: callbacks.onToolResult,
+    onAgentWriting: callbacks.onAgentWriting,
+  });
 
   // Build a nodeId → agentName lookup from the workflow YAML.
   // Standard nodes: node.id → node.agent

@@ -9,10 +9,16 @@ export interface CompiledWorkflow {
   graph: ReturnType<typeof buildStateGraph>;
 }
 
+export interface AgentNodeCallbacks {
+  onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
+  onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
+  onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
+}
+
 type LLMFactory = () => Runnable;
 
 /**
- * Top-level compiler: WorkflowYaml → CompiledWorkflow.
+ * Top-level compiler: WorkflowYaml -> CompiledWorkflow.
  * Variable {{target}} is resolved at invocation time, not compile time.
  */
 export function compileWorkflow(
@@ -20,9 +26,10 @@ export function compileWorkflow(
   loader: RoleLoader,
   llmFactory: LLMFactory,
   dataClient: AStockClient,
+  agentCallbacks?: AgentNodeCallbacks,
 ): CompiledWorkflow {
   return {
     name: workflow.name,
-    graph: buildStateGraph(workflow, loader, llmFactory, dataClient),
+    graph: buildStateGraph(workflow, loader, llmFactory, dataClient, agentCallbacks),
   };
 }

@@ -23,6 +23,7 @@ export function buildStateGraph(
   loader: RoleLoader,
   llmFactory: LLMFactory,
   dataClient: AStockClient,
+  agentCallbacks?: import("./compiler.js").AgentNodeCallbacks,
 ) {
   const graph = new StateGraph(WorkflowState);
 
@@ -46,7 +47,7 @@ export function buildStateGraph(
         );
       }
       const prompt = interpolateTemplate(node.prompt ?? `分析 {{target}}`);
-      graph.addNode(node.id, buildAgentNode(agent, prompt, llmFactory, dataClient));
+      graph.addNode(node.id, buildAgentNode(agent, prompt, llmFactory, dataClient, node.id, agentCallbacks));
     }
   }
 
