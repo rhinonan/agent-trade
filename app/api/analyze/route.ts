@@ -133,6 +133,12 @@ async function runAnalysis(
             type: nodeType,
             agentIds: [agentName],
           });
+
+          // Emit agent:thinking for frontend typewriter/bubble UI
+          ns.to(sessionId).emit(WS_EVENTS.AGENT_THINKING, {
+            nodeId,
+            agentName,
+          });
         },
         onNodeEnd: async (nodeId, result) => {
           const nodeCfg = nodeMap.get(nodeId);
@@ -182,6 +188,32 @@ async function runAnalysis(
               });
             }
           }
+        },
+        onToolCall: async (nodeId, agentName, tool, args) => {
+          ns.to(sessionId).emit(WS_EVENTS.AGENT_TOOL_CALL, {
+            nodeId,
+            agentName,
+            tool,
+            args,
+            ts: Date.now(),
+          });
+        },
+        onToolResult: async (nodeId, agentName, tool, result) => {
+          ns.to(sessionId).emit(WS_EVENTS.AGENT_TOOL_RESULT, {
+            nodeId,
+            agentName,
+            tool,
+            result,
+            ts: Date.now(),
+          });
+        },
+        onAgentWriting: async (nodeId, agentName, conclusion, reasoning) => {
+          ns.to(sessionId).emit(WS_EVENTS.AGENT_WRITING, {
+            nodeId,
+            agentName,
+            conclusion,
+            reasoning,
+          });
         },
       },
     );
