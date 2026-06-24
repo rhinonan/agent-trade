@@ -1,66 +1,31 @@
-### Task 3 Report: StockSearchInput Dropdown
+# Task 1.3 Report — DB migration for user_roles
 
-**Status:** Complete
+## Status: COMPLETE
 
-**Commit:** `1c4be2a` feat: add autocomplete dropdown to StockSearchInput
+**Commit:** `6f21c28` on branch `master`
 
-**Files changed:**
-- `nextjs-app/components/landing/StockSearchInput.tsx` (modified)
-- `nextjs-app/components/landing/__tests__/StockSearchInput.test.tsx` (new)
+## What was done
 
-**Test summary:**
-- 3 tests, all passing
-- Test 1: renders input with placeholder -- passes
-- Test 2: shows dropdown with results after typing and debounce -- passes
-- Test 3: calls onChange with symbol when clicking a result -- passes
-- Test duration: ~716ms total (real timers, ~330ms per async test)
+1. **Created** `nextjs-app/lib/db/migrations/002-user-roles.ts` — migration function that creates the `user_roles` table with:
+   - Composite PRIMARY KEY `(user_id, type, id)`
+   - `CHECK` constraint on `type IN ('agent', 'workflow')`
+   - `unixepoch()` defaults for `created_at` / `updated_at`
+   - Index on `user_id`
 
-**Self-review:**
-The component meets all requirements from the brief. It consumes `useStockSearch` for search state, renders a dropdown with results (symbol in emerald-400, name, industry, market cap), handles keyboard navigation (ArrowUp/Down/Enter/Escape), shows a loading indicator while fetching, and displays an empty state when no results match. The component interface is unchanged (`{ value, onChange }`).
+2. **Wired** the migration into `nextjs-app/lib/db/client.ts`:
+   - Added `import { migrate as migrate002 } from "./migrations/002-user-roles.js"`
+   - Called `migrate002(db)` at the end of `runMigrations()` (as "Migration 003")
 
-**Concerns:**
-- The brief's test code used `vi.useFakeTimers()` + `vi.advanceTimersByTime()`, but this pattern does not work with React 18 + the async setTimeout callback in `useStockSearch`. The fake-timer approach fails because React's `act()` microtask flushing does not integrate well with vitest's fake timer system when the timer callback is an async function. The test instead uses real timers with a 2000ms `waitFor` timeout, which tests the same integration behavior correctly and completes in ~330ms per test.
+## Migration runner pattern
 
----
+The existing runner in `client.ts` uses inline `runMigrations()` with try/catch ALTER TABLEs. There were no separate `.ts` migration files. The new `002-user-roles.ts` follows the brief's code precisely — exports a `migrate(db)` function called by the runner.
 
-## Review Fixes (2026-06-22)
+## Verification
 
-### Fix 1: Keyboard visual highlight — `useRef` to `useState`
-**File:** `nextjs-app/components/landing/StockSearchInput.tsx:14`
-- Changed `selectedIndexRef = useRef(-1)` to `const [selectedIndex, setSelectedIndex] = useState(-1)`
-- `useRef` does not trigger re-renders, so the `bg-zinc-800` active-item class never appeared visually when arrow keys were pressed. `useState` triggers re-render on every index change.
-- Replaced all `selectedIndexRef.current = X` with `setSelectedIndex(prev => ...)` (functional updater to avoid stale closure)
-- Added `setSelectedIndex(-1)` in `handleSelect` so clicking a result also resets
-- Changed import from `useRef` to `useState`
+- Database schema confirmed: `user_roles` table exists with correct columns, PRIMARY KEY, CHECK constraint, defaults, and index
+- **312 tests pass, 6 skipped, 0 failures** — no regressions
+- All pre-existing tables (`analyses`, `chat_messages`, `sessions`) unchanged
 
-### Fix 2: Remove `containerRef` dead code
-**File:** `nextjs-app/components/landing/StockSearchInput.tsx:14,41`
-- Removed `const containerRef = useRef<HTMLDivElement>(null)` (line 14)
-- Removed `ref={containerRef}` from the outer `<div>` (line 41)
-- `containerRef` was never read anywhere — pure dead code
+## Concerns
 
-### Fix 3: Replace real-timer tests with direct `useStockSearch` mock
-**File:** `nextjs-app/components/landing/__tests__/StockSearchInput.test.tsx`
-- Replaced real-timer fetch mocking (`globalThis.fetch as any`) with `vi.mock("@/hooks/useStockSearch.js")` and `vi.mocked(useStockSearch)`
-- Eliminates `(globalThis.fetch as any)` TypeScript violation and fragile real-timer waits
-- Tests now run in 102ms total (was ~716ms with real timers)
-- Removed `beforeEach`/`afterEach` timer management; uses `beforeEach` only for mock reset
-
-### Fix 4: Separate `findByText` from `fireEvent.click`
-**File:** `nextjs-app/components/landing/__tests__/StockSearchInput.test.tsx:56-57`
-- Test 3 now does `const item = await screen.findByText("600519");` then `fireEvent.click(item);`
-- Separates the async wait from the synchronous click action for clarity
-
-### Verification
-
-**Tests:**
-```
-cd nextjs-app && pnpm vitest run components/landing/__tests__/StockSearchInput.test.tsx
-```
-Output: 3 passed (102ms)
-
-**TypeScript:**
-```
-cd nextjs-app && pnpm tsc --noEmit
-```
-Output: clean (no errors)
+- The `002_user_id.sql` file already in `lib/db/migrations/` is not loaded by the runner — only the inline ALTER TABLEs in `runMigrations()` execute it. The new `002-user-roles.ts` pattern (exported function called by runner) is more maintainable than the orphaned `.sql` file.
