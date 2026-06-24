@@ -6,8 +6,7 @@
 import type { DataResult, StockInfo, SectorInfo, FundFlowMinute, FundFlowDay,
   ConceptBlock, DragonTigerEntry, AllDragonTigerEntry, MarginTradingEntry,
   BlockTradeEntry, ShareholderEntry, DividendEntry, LockupEntry,
-  ResearchReport, IndustryReport, ResearchPDF, StockNewsItem, GlobalNewsItem,
-  SectorConstituent } from "../types.js";
+  ResearchReport, IndustryReport, ResearchPDF, StockNewsItem, GlobalNewsItem } from "../types.js";
 import { normalizeCode, toSecId, fetchWithTimeout, RateLimiter } from "../utils.js";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
@@ -16,6 +15,13 @@ const DATACENTER_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get";
 const REPORT_URL = "https://reportapi.eastmoney.com/report/list";
 const SEARCH_URL = "https://search-api-web.eastmoney.com/search/jsonp";
 const NEWS_URL = "https://np-weblist.eastmoney.com/comm/web/getNewsList";
+
+interface Push2Response { data?: { f57?: string; f58?: string; f85?: string; f86?: number; f84?: number; f20?: number; f117?: string; diff?: Array<Record<string, any>>; klines?: string[]; }; }
+interface DatacenterResponse { result?: { data?: Record<string, any>[]; }; }
+interface ReportResponse { result?: { data?: Record<string, any>[]; }; }
+interface NewsResponse { result?: { cmsArticleWebOld?: Record<string, any>[]; data?: Record<string, any>[]; }; }
+
+let _jsonpCounter = 0;
 
 export class EastmoneyProvider {
   private limiter: RateLimiter;
@@ -57,7 +63,7 @@ export class EastmoneyProvider {
   async getStockInfo(code: string): Promise<DataResult<StockInfo | null>> {
     const secid = toSecId(code);
     const url = `${PUSH2_URL}/stock/get?secid=${secid}&fields=f57,f58,f85,f86,f84,f117,f20,f21`;
-    const r = await this._safeJson<any>(url, "push2.info");
+    const r = await this._safeJson<Push2Response>(url, "push2.info");
     if (!r.data?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
     const d = r.data.data;
@@ -79,10 +85,10 @@ export class EastmoneyProvider {
 
   async getSectorList(): Promise<DataResult<SectorInfo[]>> {
     const url = `${PUSH2_URL}/clist/get?pn=1&pz=500&po=1&np=1&fltt=2&fid=f3&fs=m:90+t:2&fields=f12,f14,f3,f104`;
-    const r = await this._safeJson<any>(url, "push2.sectors");
+    const r = await this._safeJson<Push2Response>(url, "push2.sectors");
     if (!r.data?.data?.diff) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const sectors: SectorInfo[] = r.data.data.diff.map((d: any) => ({
+    const sectors: SectorInfo[] = r.data.data.diff.map((d: { f12?: string; f14?: string; f3?: number; f104?: number }) => ({
       code: d.f12 ?? "",
       name: d.f14 ?? "",
       changePct: d.f3 ?? 0,
@@ -96,7 +102,7 @@ export class EastmoneyProvider {
   async getFundFlowMinute(code: string): Promise<DataResult<FundFlowMinute[]>> {
     const secid = toSecId(code);
     const url = `${PUSH2_URL}/stock/fflow/kline/get?secid=${secid}&lmt=0&klt=1&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57`;
-    const r = await this._safeJson<any>(url, "push2.fflow");
+    const r = await this._safeJson<Push2Response>(url, "push2.fflow");
     if (!r.data?.data?.klines) return { data: null, error: r.error ?? "No data", source: r.source };
 
     const items: FundFlowMinute[] = r.data.data.klines.map((k: string) => {
@@ -118,7 +124,7 @@ export class EastmoneyProvider {
   async getFundFlow120(code: string): Promise<DataResult<FundFlowDay[]>> {
     const secid = toSecId(code);
     const url = `${PUSH2_URL}/stock/fflow/daykline/get?secid=${secid}&lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57`;
-    const r = await this._safeJson<any>(url, "push2.fflow120");
+    const r = await this._safeJson<Push2Response>(url, "push2.fflow120");
     if (!r.data?.data?.klines) return { data: null, error: r.error ?? "No data", source: r.source };
 
     const items: FundFlowDay[] = r.data.data.klines.map((k: string) => {
@@ -140,10 +146,10 @@ export class EastmoneyProvider {
   async getConceptBlocks(code: string): Promise<DataResult<ConceptBlock[]>> {
     const secid = toSecId(code);
     const url = `${PUSH2_URL}/slist/get?spt=3&secid=${secid}&fields=f12,f14,f13,f3,f128`;
-    const r = await this._safeJson<any>(url, "slist.concept");
+    const r = await this._safeJson<Push2Response>(url, "slist.concept");
     if (!r.data?.data?.diff) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const blocks: ConceptBlock[] = r.data.data.diff.map((d: any) => ({
+    const blocks: ConceptBlock[] = r.data.data.diff.map((d: { f12?: string; f14?: string; f13?: number; f3?: number; f128?: string }) => ({
       blockCode: d.f12 ?? "",
       blockName: d.f14 ?? "",
       blockType: d.f13 === 1 ? "行业" : d.f13 === 2 ? "概念" : "地域",
@@ -167,10 +173,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.dt");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.dt");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: DragonTigerEntry[] = r.data.result.data.map((d: any) => ({
+    const entries: DragonTigerEntry[] = r.data.result.data.map((d: Record<string, any>) => ({
       tradeDate: d.TRADE_DATE ?? "",
       stockCode: d.SECUCODE ?? "",
       stockName: d.SECURITY_NAME_ABBR ?? "",
@@ -181,8 +187,8 @@ export class EastmoneyProvider {
       netBuyAmt: d.NET_BUY_AMT ?? 0,
       buyAmt: d.TOTAL_BUY_AMT ?? 0,
       sellAmt: d.TOTAL_SELL_AMT ?? 0,
-      topBuyBrokers: [],
-      topSellBrokers: [],
+      topBuyBrokers: [],   // Broker detail requires separate RPT_DRAGON_TIGER_BROKER endpoint
+      topSellBrokers: [],  // Broker detail requires separate RPT_DRAGON_TIGER_BROKER endpoint
     }));
     return { data: entries, source: r.source };
   }
@@ -200,10 +206,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.allDt");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.allDt");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: AllDragonTigerEntry[] = r.data.result.data.map((d: any, i: number) => ({
+    const entries: AllDragonTigerEntry[] = r.data.result.data.map((d: Record<string, any>, i: number) => ({
       tradeDate: d.TRADE_DATE ?? "",
       stockCode: d.SECUCODE ?? "",
       stockName: d.SECURITY_NAME_ABBR ?? "",
@@ -230,10 +236,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.margin");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.margin");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: MarginTradingEntry[] = r.data.result.data.map((d: any) => ({
+    const entries: MarginTradingEntry[] = r.data.result.data.map((d: Record<string, any>) => ({
       tradeDate: d.TRADE_DATE ?? "",
       stockCode: d.SECUCODE ?? "",
       marginBalance: d.MARGIN_BAL ?? 0,
@@ -260,10 +266,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.block");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.block");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: BlockTradeEntry[] = r.data.result.data.map((d: any) => ({
+    const entries: BlockTradeEntry[] = r.data.result.data.map((d: Record<string, any>) => ({
       tradeDate: d.TRADE_DATE ?? "",
       stockCode: d.SECUCODE ?? "",
       stockName: d.SECURITY_NAME_ABBR ?? "",
@@ -288,10 +294,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.shareholder");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.shareholder");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: ShareholderEntry[] = r.data.result.data.map((d: any) => ({
+    const entries: ShareholderEntry[] = r.data.result.data.map((d: Record<string, any>) => ({
       reportDate: d.REPORT_DATE ?? "",
       stockCode: d.SECUCODE ?? "",
       shareholderCount: d.HOLDER_NUM ?? 0,
@@ -312,10 +318,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.dividend");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.dividend");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: DividendEntry[] = r.data.result.data.map((d: any) => ({
+    const entries: DividendEntry[] = r.data.result.data.map((d: Record<string, any>) => ({
       exDate: d.EX_DATE ?? "",
       stockCode: d.SECUCODE ?? "",
       cashDiv: d.CASH_DIV ?? 0,
@@ -340,10 +346,10 @@ export class EastmoneyProvider {
       source: "WEB", client: "WEB",
     });
 
-    const r = await this._safeJson<any>(`${DATACENTER_URL}?${params}`, "datacenter.lockup");
+    const r = await this._safeJson<DatacenterResponse>(`${DATACENTER_URL}?${params}`, "datacenter.lockup");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const entries: LockupEntry[] = r.data.result.data.map((d: any) => ({
+    const entries: LockupEntry[] = r.data.result.data.map((d: Record<string, any>) => ({
       stockCode: d.SECUCODE ?? "",
       stockName: d.SECURITY_NAME_ABBR ?? "",
       unlockDate: d.UNLOCK_DATE ?? "",
@@ -358,10 +364,10 @@ export class EastmoneyProvider {
 
   async individualReports(code: string, page: number = 1): Promise<DataResult<ResearchReport[]>> {
     const url = `${REPORT_URL}?stockCode=${normalizeCode(code)}&pageNo=${page}&pageSize=20&qType=0`;
-    const r = await this._safeJson<any>(url, "report.individual");
+    const r = await this._safeJson<ReportResponse>(url, "report.individual");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const reports: ResearchReport[] = r.data.result.data.map((d: any) => ({
+    const reports: ResearchReport[] = r.data.result.data.map((d: Record<string, any>) => ({
       id: d.infoCode ?? "",
       title: d.title ?? "",
       author: d.author ?? "",
@@ -383,10 +389,10 @@ export class EastmoneyProvider {
 
   async industryReports(industryCode: string = "*", page: number = 1): Promise<DataResult<IndustryReport[]>> {
     const url = `${REPORT_URL}?industryCode=${industryCode}&pageNo=${page}&pageSize=20&qType=1`;
-    const r = await this._safeJson<any>(url, "report.industry");
+    const r = await this._safeJson<ReportResponse>(url, "report.industry");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const reports: IndustryReport[] = r.data.result.data.map((d: any) => ({
+    const reports: IndustryReport[] = r.data.result.data.map((d: Record<string, any>) => ({
       id: d.infoCode ?? "",
       title: d.title ?? "",
       author: d.author ?? "",
@@ -415,17 +421,16 @@ export class EastmoneyProvider {
   // ─── Stock News ───
 
   async stockNews(code: string, page: number = 1): Promise<DataResult<StockNewsItem[]>> {
-    const cb = `jQuery${Date.now()}`;
+    const cb = `jQuery${Date.now()}_${_jsonpCounter++}`;
     const url = `${SEARCH_URL}?cb=${cb}&keyword=${normalizeCode(code)}&pageNo=${page}&pageSize=20`;
-    const r = await this._safeJson<string>(url, "news.stock");
-    if (!r.data) return { data: null, error: r.error, source: r.source };
-
-    // Response is JSONP — extract JSON from callback wrapper
     try {
-      const json = r.data.replace(new RegExp(`^${cb}\\(`), "").replace(/\)$/, "");
+      const res = await this._get(url);
+      if (!res.ok) return { data: null, error: `HTTP ${res.status}`, source: "eastmoney.news.stock" };
+      const text = await res.text();
+      const json = text.replace(new RegExp(`^${cb}\\(`), "").replace(/\)$/, "");
       const d = JSON.parse(json);
       const articles = d?.result?.cmsArticleWebOld ?? d?.result ?? [];
-      const items: StockNewsItem[] = (Array.isArray(articles) ? articles : []).map((a: any) => ({
+      const items: StockNewsItem[] = (Array.isArray(articles) ? articles : []).map((a: Record<string, any>) => ({
         id: a.articleId ?? a.id ?? "",
         title: a.title ?? "",
         summary: a.summary ?? "",
@@ -433,9 +438,9 @@ export class EastmoneyProvider {
         source: a.source ?? "",
         url: a.url ?? "",
       }));
-      return { data: items, source: r.source };
+      return { data: items, source: "eastmoney.news.stock" };
     } catch (err) {
-      return { data: null, error: `JSONP parse error: ${err}`, source: r.source };
+      return { data: null, error: `JSONP parse error: ${String(err)}`, source: "eastmoney.news.stock" };
     }
   }
 
@@ -443,10 +448,10 @@ export class EastmoneyProvider {
 
   async globalNews(page: number = 1): Promise<DataResult<GlobalNewsItem[]>> {
     const url = `${NEWS_URL}?pageNo=${page}&pageSize=30`;
-    const r = await this._safeJson<any>(url, "news.global");
+    const r = await this._safeJson<NewsResponse>(url, "news.global");
     if (!r.data?.result?.data) return { data: null, error: r.error ?? "No data", source: r.source };
 
-    const items: GlobalNewsItem[] = r.data.result.data.map((d: any) => ({
+    const items: GlobalNewsItem[] = r.data.result.data.map((d: Record<string, any>) => ({
       id: d.newsId ?? d.id ?? "",
       title: d.newsTitle ?? d.title ?? "",
       content: d.newsContent ?? d.content ?? "",
