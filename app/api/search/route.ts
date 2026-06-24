@@ -15,6 +15,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("Search API error:", err);
-    return NextResponse.json({ keyword: keyword.trim(), results: [] });
+    return NextResponse.json({ data: [], source: "tencent", error: String(err) });
   }
 }

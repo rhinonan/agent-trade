@@ -51,6 +51,6 @@ describe("GET /api/search", () => {
     const res = await GET2(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.results).toEqual([]);
+    expect(body.data).toEqual([]);
   });
 });

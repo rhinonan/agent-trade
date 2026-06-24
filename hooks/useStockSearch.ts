@@ -44,7 +44,7 @@ export function useStockSearch(keyword: string): {
         );
         if (!res.ok) { setResults([]); return; }
         const data = await res.json();
-        setResults(data.results ?? []);
+        setResults(data.data ?? []);
         setOpen(true);
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") return;
