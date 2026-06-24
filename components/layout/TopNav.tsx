@@ -15,12 +15,16 @@ export function TopNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   // Close on outside click
   useEffect(() => {
     if (!menuOpen) return;
     function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideMenu = menuRef.current?.contains(target);
+      const insideBtn = btnRef.current?.contains(target);
+      if (!insideMenu && !insideBtn) {
         setMenuOpen(false);
       }
     }
@@ -68,8 +72,8 @@ export function TopNav() {
         <div className="flex items-center gap-2">
           {/* Hamburger (mobile only) */}
           <button
+            ref={btnRef}
             onClick={() => setMenuOpen(!menuOpen)}
-            onMouseDown={(e) => e.stopPropagation()}
             className="md:hidden flex items-center justify-center w-9 h-9 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
             aria-label={menuOpen ? "关闭菜单" : "打开菜单"}
             aria-expanded={menuOpen}
@@ -103,6 +107,7 @@ export function TopNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={() => setMenuOpen(false)}
                   className={`block px-4 py-3 text-sm rounded-lg transition-colors ${
                     isActive
                       ? "bg-blue-500/10 text-blue-400 font-medium"

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* ── Global ── */
+body {
+  cursor: default;
+}
+a, button, [role="button"], input, textarea, select {
+  cursor: pointer;
+}
+input[type="text"], input[type="search"], textarea, [contenteditable] {
+  cursor: text;
+}
+
 /* ── Glow System ── */
 
 /* Background ambient glow */
