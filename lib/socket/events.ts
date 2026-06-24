@@ -14,6 +14,11 @@ export const WS_EVENTS = {
   NODE_ERROR: "node:error",
   DEBATE_ROUND: "debate:round",
   DEBATE_YIELD: "debate:yield",
+  // Server emits — agent-level granular events (tool calls, thinking, writing)
+  AGENT_THINKING: "agent:thinking",
+  AGENT_TOOL_CALL: "agent:tool_call",
+  AGENT_TOOL_RESULT: "agent:tool_result",
+  AGENT_WRITING: "agent:writing",
   // Client emits
   SUBSCRIBE: "subscribe",
   UNSUBSCRIBE: "unsubscribe",
@@ -99,4 +104,32 @@ export interface DebateYieldPayload {
   fromAgent: string;
   toAgent: string;
   reason: string;
+}
+
+export interface AgentThinkingPayload {
+  nodeId: string;
+  agentName: string;
+}
+
+export interface AgentToolCallPayload {
+  nodeId: string;
+  agentName: string;
+  tool: string;
+  args: Record<string, unknown>;
+  ts: number;
+}
+
+export interface AgentToolResultPayload {
+  nodeId: string;
+  agentName: string;
+  tool: string;
+  result: string;
+  ts: number;
+}
+
+export interface AgentWritingPayload {
+  nodeId: string;
+  agentName: string;
+  conclusion: string;
+  reasoning: string;
 }
