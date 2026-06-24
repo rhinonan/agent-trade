@@ -190,6 +190,8 @@ export function buildAgentNode(
   taskPrompt: string,
   llmFactory: () => Runnable,
   dataClient: AStockClient,
+  nodeId: string,
+  callbacks?: import("./compiler.js").AgentNodeCallbacks,
 ) {
   return async (state: State): Promise<Partial<State>> => {
     const llm = llmFactory();
@@ -216,6 +218,21 @@ export function buildAgentNode(
         typeof response.content === "string"
           ? response.content
           : JSON.stringify(response.content);
+
+      // Emit writing event for frontend typewriter (simple path, no tools)
+      if (callbacks) {
+        const agentName = compiled.id;
+        let conclusion = "";
+        let reasoning = "";
+        try {
+          const preParsed = JSON.parse(text);
+          conclusion = preParsed.conclusion ?? text;
+          reasoning = preParsed.reasoning ?? "";
+        } catch {
+          conclusion = text;
+        }
+        await callbacks.onAgentWriting?.(nodeId, agentName, conclusion, reasoning);
+      }
 
       let parsed: unknown = text;
       if (compiled.outputParser) {
@@ -265,11 +282,51 @@ export function buildAgentNode(
       agent,
       tools: structuredTools,
       maxIterations: compiled.maxToolSteps,
-      returnIntermediateSteps: false,
+      returnIntermediateSteps: true,
     });
 
     const result = await executor.invoke({ input: resolvedPrompt });
+
+    // Emit tool call/result events for real-time frontend display
+    const intermediateSteps = (result as any).intermediateSteps as
+      | { action: { tool: string; toolInput: Record<string, unknown> }; observation: string }[]
+      | undefined;
+    if (intermediateSteps && callbacks) {
+      const agentName = compiled.id;
+      for (const step of intermediateSteps) {
+        await callbacks.onToolCall?.(
+          nodeId,
+          agentName,
+          step.action.tool,
+          step.action.toolInput,
+        );
+        await callbacks.onToolResult?.(
+          nodeId,
+          agentName,
+          step.action.tool,
+          typeof step.observation === "string"
+            ? step.observation
+            : JSON.stringify(step.observation),
+        );
+      }
+    }
+
     const outputText = result.output as string;
+
+    // Emit writing event with full conclusion/reasoning for frontend typewriter
+    if (callbacks) {
+      const agentName = compiled.id;
+      let conclusion = "";
+      let reasoning = "";
+      try {
+        const preParsed = JSON.parse(outputText);
+        conclusion = preParsed.conclusion ?? outputText;
+        reasoning = preParsed.reasoning ?? "";
+      } catch {
+        conclusion = outputText;
+      }
+      await callbacks.onAgentWriting?.(nodeId, agentName, conclusion, reasoning);
+    }
 
     let parsed: unknown = outputText;
     if (compiled.outputParser) {
