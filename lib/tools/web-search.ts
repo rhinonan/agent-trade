@@ -30,8 +30,11 @@ export const webSearchTool: ToolDefinition = {
       return JSON.stringify({ error: "query is required and must be non-empty" });
     }
 
-    const timeout = setTimeout(() => {}, 15_000);
     try {
+      // Compose ctx.signal with 15s deadline — either one will abort
+      const timeoutSignal = AbortSignal.timeout(15_000);
+      const composedSignal = AbortSignal.any([ctx.signal, timeoutSignal]);
+
       const response = await fetch("https://api.volcengine.com/web_search/v1/query", {
         method: "POST",
         headers: {
@@ -42,7 +45,7 @@ export const webSearchTool: ToolDefinition = {
           query: query.trim(),
           stream: false,
         }),
-        signal: ctx.signal,
+        signal: composedSignal,
       });
 
       if (!response.ok) {
@@ -57,13 +60,15 @@ export const webSearchTool: ToolDefinition = {
       return JSON.stringify(data, null, 2);
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
+        // Check which signal fired
+        if (ctx.signal.aborted) {
+          return JSON.stringify({ error: "Web search cancelled by the system" });
+        }
         return JSON.stringify({ error: "Web search timed out after 15s" });
       }
       return JSON.stringify({
         error: `Web search failed: ${(err as Error).message}`,
       });
-    } finally {
-      clearTimeout(timeout);
     }
   },
 };
