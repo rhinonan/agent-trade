@@ -21,4 +21,6 @@ export const WorkflowState = Annotation.Root({
   should_stop: Annotation<boolean>,
   /** Reason debate stopped */
   stop_reason: Annotation<"yield" | "max_rounds" | "">,
+  /** Total debate rounds completed (set at debate end, read by narrator) */
+  total_rounds: Annotation<number>,
 });
