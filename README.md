@@ -37,7 +37,7 @@
 │  ├── role-loader/  YAML → LangChain 编译       │
 │  ├── langgraph/    StateGraph + 辩论子图        │
 │  ├── tools/        工具注册 (K线/指标/资金…)     │
-│  ├── data/         Python 数据服务客户端         │
+│  ├── data-sdk/     原生 A 股数据 SDK (28 HTTP)  │
 │  ├── llm/          LLM Provider Factory       │
 │  ├── socket/       Socket.IO 服务端            │
 │  └── db/           SQLite 持久化               │
@@ -55,10 +55,10 @@
                │
                ▼
 ┌──────────────────────────────────────────────┐
-│   d2-data (独立仓库 — Python FastAPI)          │
+│   data-sdk (lib/data-sdk/ — 原生 HTTP)          │
 │                                              │
-│   纯数据层，无 Agent 逻辑                       │
-│   FastAPI + akshare → 行情 / 财报 / 板块       │
+│   零依赖，无需独立服务                           │
+│   Tencent / Baidu / Eastmoney / Sina / THS    │
 └──────────────────────────────────────────────┘
 ```
 
@@ -85,25 +85,17 @@ cp .env.example .env
 | **openai** | `OPENAI_API_KEY` | 默认模型 `gpt-4o` |
 | **anthropic** | `ANTHROPIC_API_KEY` | 默认模型 `claude-sonnet-4-6` |
 
-### 3. 启动数据服务
-
-Python 数据服务已独立为单独仓库 `d2-data`，先启动它：
-
-```bash
-cd d2-data
-pip install -r requirements.txt
-python main.py
-# → http://localhost:9500
-```
-
-### 4. 启动 Web 应用
+### 3. 启动
 
 ```bash
 pnpm dev
 # → http://localhost:3000
 ```
 
-### 5. 运行分析
+数据访问使用内置 A 股数据 SDK（`lib/data-sdk/`），无需额外启动数据服务。
+SDK 直接调用 Tencent、Baidu、Eastmoney、Sina、Cninfo、THS 等公开 HTTP API。
+
+### 4. 运行分析
 
 在浏览器中打开 `http://localhost:3000`，输入股票代码，选择工作流，点击"开始分析"即可。
 
@@ -284,7 +276,7 @@ nodes:
 │   ├── role-loader/             YAML → LangChain 编译 (schema/loader/repo)
 │   ├── langgraph/               LanGraph 引擎 (state/nodes/builder/debate/compiler/runner)
 │   ├── tools/                   工具注册 (类型/实现)
-│   ├── data/                    Python 服务 HTTP 客户端
+│   ├── data-sdk/                   A 股数据 SDK (原生 HTTP)
 │   ├── llm/                     LLM Provider Factory
 │   ├── chat/                    会话管理 (类型/SSE)
 │   ├── socket/                  Socket.IO 服务端
@@ -317,7 +309,7 @@ nodes:
 | 输出解析 | StructuredOutputParser + Zod schema |
 | 数据库 | SQLite (better-sqlite3) |
 | 测试 | Vitest + @testing-library/react |
-| 数据服务 | Python FastAPI + akshare (独立仓库) |
+| 数据服务 | lib/data-sdk/ — 直接 HTTP (Tencent/Baidu/Eastmoney/Sina/Cninfo/THS) |
 
 ## 开源协议
 

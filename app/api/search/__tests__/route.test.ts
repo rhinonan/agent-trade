@@ -4,15 +4,16 @@ import { NextRequest } from "next/server";
 const { mockSearch } = vi.hoisted(() => ({
   mockSearch: vi.fn<
     (keyword: string) => Promise<{
-      keyword: string;
-      results: { symbol: string; name: string; industry: string }[];
+      data: { symbol: string; name: string; type: string }[] | null;
+      error?: string;
+      source: string;
     }>
   >(),
 }));
 
-vi.mock("@/lib/data/client.js", () => ({
-  DataClient: vi.fn().mockImplementation(() => ({
-    reference: {
+vi.mock("@/lib/data-sdk/index.js", () => ({
+  AStockClient: vi.fn().mockImplementation(() => ({
+    market: {
       search: mockSearch,
     },
   })),
@@ -23,8 +24,8 @@ import { GET } from "../route.js";
 describe("GET /api/search", () => {
   beforeEach(() => {
     mockSearch.mockResolvedValue({
-      keyword: "600",
-      results: [{ symbol: "600519", name: "贵州茅台", industry: "白酒" }],
+      data: [{ symbol: "600519", name: "贵州茅台", type: "stock" }],
+      source: "tencent",
     });
   });
 
@@ -33,8 +34,8 @@ describe("GET /api/search", () => {
     const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.results).toHaveLength(1);
-    expect(body.results[0].symbol).toBe("600519");
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].symbol).toBe("600519");
   });
 
   it("returns 400 when keyword is missing", async () => {

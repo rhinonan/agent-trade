@@ -22,7 +22,7 @@ Agents and workflows are defined as YAML files, compiled at runtime into LangCha
 | Real-time | Socket.IO (namespace `/analysis`) |
 | Database | SQLite (better-sqlite3) |
 | Testing | Vitest + @testing-library/react (jsdom) |
-| Data service | Python 3.11+ FastAPI + akshare (separate repo: `d2-data`) |
+| Data service | lib/data-sdk/ — direct HTTP APIs (Tencent/Baidu/Eastmoney/Sina/Cninfo/THS) |
 
 ## Project Structure
 
@@ -77,9 +77,12 @@ Agents and workflows are defined as YAML files, compiled at runtime into LangCha
 │   │   ├── types.ts              Core type definitions
 │   │   ├── registry.ts           AgentRegistry (kept for backward compat)
 │   │   └── index.ts              Barrel export
-│   ├── data/                     Python data service HTTP client
-│   │   ├── client.ts             DataClient
-│   │   └── types.ts              Response types
+│   ├── data-sdk/                  A-Stock data SDK (native HTTP)
+│   │   ├── client.ts             AStockClient + 7-layer API
+│   │   ├── types.ts              DataResult + business types
+│   │   ├── indicators.ts         Technical indicators (MACD/RSI/MA/Boll)
+│   │   ├── utils.ts              HTTP helpers (timeout, retry, decodeGBK)
+│   │   └── providers/            Tencent / Baidu / Eastmoney / Sina / Cninfo / THS
 │   ├── auth/                     Auth adapter hook layer (open-source side)
 │   │   ├── types.ts              AuthAdapter interface, NoopAuthAdapter
 │   │   └── __tests__/
@@ -305,8 +308,8 @@ Linked by user_id string (app-level, not FK).
 - Tool-using agents go through `createToolCallingAgent` + `AgentExecutor`; non-tool agents use direct `llm.invoke()`
 - User-uploaded roles are stored in `user_roles` table and loaded per-request via `loadFromDB(userId)`
 - Previous user's DB-loaded roles are cleared when a new user makes a request (cross-user isolation)
-- Python data service must be running separately (`python main.py` on `:9500`)
-- `DataClient` default URL is `localhost:9500` — override via `dataServiceUrl` in API request
+- Data SDK is built-in (`lib/data-sdk/`) — no separate service needed; AStockClient calls Tencent/Baidu/Eastmoney/Sina/Cninfo/THS HTTP APIs directly
+- `AStockClient` default constructor works out of the box (no `dataServiceUrl` config)
 - `useAnalysisSocket` must be called inside `useEffect` or client component (uses `window.location`)
 - `server.mjs` inlines Socket.IO init — keep in sync with `lib/socket/server.ts`
 - `x-user-id` header is set by `middleware.ts` — API routes should read it, never set it
