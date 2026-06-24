@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DataClient } from "@/lib/data/client.js";
+import { AStockClient } from "@/lib/data-sdk/index.js";
 
 export async function GET(
   _req: NextRequest,
@@ -8,18 +8,19 @@ export async function GET(
   const { code } = await params;
 
   try {
-    const client = new DataClient();
-    const kline = await client.kline.get({ symbol: code, period: "daily", count: 2 });
+    const client = new AStockClient();
+    const result = await client.market.kline(code, { period: "daily", count: 2 });
 
-    if (kline.bars.length === 0) {
+    if (!result.data || result.data.length === 0) {
       return NextResponse.json(
         { error: "No data for this symbol" },
         { status: 404 }
       );
     }
 
-    const latest = kline.bars[kline.bars.length - 1];
-    const prev = kline.bars.length >= 2 ? kline.bars[kline.bars.length - 2] : null;
+    const bars = result.data;
+    const latest = bars[bars.length - 1];
+    const prev = bars.length >= 2 ? bars[bars.length - 2] : null;
 
     const price = latest.close;
     const change = prev ? price - prev.close : 0;

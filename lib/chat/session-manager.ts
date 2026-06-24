@@ -5,7 +5,7 @@ import type { SessionRepo } from "../db/session-repo.js";
 import type { AgentRegistry } from "../engine/registry.js";
 import type { WorkflowDAG, AnalysisTarget, Finding } from "../engine/types.js";
 import type { AnalyzeOptions } from "../llm/create-llm.js";
-import { DataClient } from "../data/client.js";
+import { AStockClient } from "../data-sdk/index.js";
 
 let _instance: SessionManager | undefined;
 
@@ -61,7 +61,7 @@ export class SessionManager {
       status: "RUNNING", stepIndex: 0, findings: [], createdAt: Date.now(),
     };
 
-    const dataClient = new DataClient({ baseUrl: input.dataServiceUrl ?? "http://localhost:9500" });
+    const dataClient = new AStockClient();
     this.sessions.set(id, { session, registry, options });
 
     if (this.sessionRepo) {
@@ -74,8 +74,8 @@ export class SessionManager {
 
       // Fire async lookup for stock name
       if (target.type === "stock") {
-        dataClient.reference.get(target.code).then(info => {
-          this.sessionRepo?.updateName(id, info.name);
+        dataClient.fundamentals.stockInfo(target.code).then(r => {
+          if (r.data) this.sessionRepo?.updateName(id, r.data.name);
         }).catch(() => {});
       }
     }

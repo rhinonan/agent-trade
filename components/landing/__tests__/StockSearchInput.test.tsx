@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { StockSearchInput } from "../StockSearchInput.js";
+import type { SearchResult } from "@/lib/data-sdk/types.js";
 
 vi.mock("@/hooks/useStockSearch.js", () => ({
   useStockSearch: vi.fn(() => ({
@@ -29,8 +30,8 @@ describe("StockSearchInput", () => {
   });
 
   it("shows dropdown with results", () => {
-    const mockResults = [
-      { symbol: "600519", name: "贵州茅台", industry: "白酒", marketCap: 2300000000000 },
+    const mockResults: SearchResult[] = [
+      { symbol: "600519", name: "贵州茅台", type: "stock" },
     ];
     vi.mocked(useStockSearch).mockReturnValue({
       results: mockResults,
@@ -46,8 +47,8 @@ describe("StockSearchInput", () => {
   });
 
   it("calls onChange with symbol when clicking a result", async () => {
-    const mockResults = [
-      { symbol: "600519", name: "贵州茅台", industry: "白酒" },
+    const mockResults: SearchResult[] = [
+      { symbol: "600519", name: "贵州茅台", type: "stock" },
     ];
     const mockSetOpen = vi.fn();
     vi.mocked(useStockSearch).mockReturnValue({

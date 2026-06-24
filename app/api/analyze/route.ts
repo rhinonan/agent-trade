@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { setDefaultLLMProvider } from "@/lib/engine/index.js";
-import { DataClient } from "@/lib/data/client.js";
+import { AStockClient } from "@/lib/data-sdk/index.js";
 import { getSocketIO } from "@/lib/socket/server.js";
 import { WS_EVENTS } from "@/lib/socket/events.js";
 import type { AnalysisTarget } from "@/lib/engine/types.js";
@@ -285,16 +285,20 @@ function extractFindings(
 }
 
 async function resolveTarget(dto: any): Promise<AnalysisTarget> {
-  const client = new DataClient({ baseUrl: dto.dataServiceUrl ?? "http://localhost:9500" });
+  const client = new AStockClient();
   if (dto.sector) {
     const target: AnalysisTarget = { type: "sector", code: dto.sector };
-    try { const info = await client.sector.constituents(dto.sector); target.name = info.name; } catch { /* */ }
+    try {
+      const ranking = await client.signal.sectorRanking();
+      const info = ranking.data?.find(s => s.code === dto.sector);
+      if (info) target.name = info.name;
+    } catch { /* best-effort name lookup */ }
     return target;
   }
   if (dto.index) return { type: "index", code: dto.index };
   if (dto.code) {
     const target: AnalysisTarget = { type: "stock", code: dto.code };
-    try { const info = await client.reference.get(dto.code); target.name = info.name; } catch { /* */ }
+    try { const r = await client.fundamentals.stockInfo(dto.code); if (r.data) target.name = r.data.name; } catch { /* */ }
     return target;
   }
   throw new Error("Must specify code, sector, or index");

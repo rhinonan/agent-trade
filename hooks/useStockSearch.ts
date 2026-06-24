@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import type { SearchResult } from "@/lib/data/types.js";
+import type { SearchResult } from "@/lib/data-sdk/types.js";
 
 export function useStockSearch(keyword: string): {
   results: SearchResult[];

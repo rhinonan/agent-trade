@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { useStockSearch } from "@/hooks/useStockSearch.js";
-import type { SearchResult } from "@/lib/data/types.js";
+import type { SearchResult } from "@/lib/data-sdk/types.js";
 
 interface StockSearchInputProps {
   value: string;
@@ -84,21 +84,7 @@ export function StockSearchInput({ value, onChange }: StockSearchInputProps) {
               <span className="text-blue-400 font-mono text-sm font-medium whitespace-nowrap">
                 {r.symbol}
               </span>
-              <div className="min-w-0">
-                <span className="text-sm text-zinc-200">{r.name}</span>
-                {r.industry && (
-                  <span className="text-xs text-zinc-500 ml-2">{r.industry}</span>
-                )}
-              </div>
-              {r.marketCap !== undefined && (
-                <span className="text-xs text-zinc-600 ml-auto whitespace-nowrap">
-                  {r.marketCap >= 1e12
-                    ? `${(r.marketCap / 1e12).toFixed(1)}万亿`
-                    : r.marketCap >= 1e8
-                      ? `${(r.marketCap / 1e8).toFixed(0)}亿`
-                      : `${(r.marketCap / 1e4).toFixed(0)}万`}
-                </span>
-              )}
+              <span className="text-sm text-zinc-200">{r.name}</span>
             </button>
           ))}
         </div>

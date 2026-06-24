@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DataClient } from "@/lib/data/client.js";
+import { AStockClient } from "@/lib/data-sdk/index.js";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const client = new DataClient();
-    const result = await client.reference.search(keyword.trim());
+    const client = new AStockClient();
+    const result = await client.market.search(keyword.trim());
     return NextResponse.json(result);
   } catch (err) {
     console.error("Search API error:", err);
