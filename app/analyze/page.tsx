@@ -17,7 +17,7 @@ export default function AnalyzePage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/session", {
+      const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: code.trim(), workflow }),
@@ -27,7 +27,7 @@ export default function AnalyzePage() {
         throw new Error((body as { error?: string }).error ?? `请求失败 (${res.status})`);
       }
       const { sessionId } = await res.json();
-      router.push(`/session/${sessionId}`);
+      router.push(`/analyze/${sessionId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "请求失败，请重试");
       setLoading(false);

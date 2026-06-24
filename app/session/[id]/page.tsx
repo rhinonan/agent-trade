@@ -29,7 +29,7 @@ export default async function SessionPage({
     <main className="h-screen flex flex-col lg:flex-row bg-zinc-950">
       {/* Left: Chat (always visible, takes remaining space) */}
       <div className="flex-1 min-w-0 flex flex-col">
-        <ChatPanel sessionId={id} agents={[]} />
+        <ChatPanel sessionId={id} />
       </div>
 
       {/* Right: Data panel (hidden on mobile, fixed width on desktop) */}

@@ -91,6 +91,113 @@ const quoteTool: ToolDefinition = {
   },
 };
 
+// ─── Missing tools referenced by agent YAMLs ───
+
+const macroIndicatorTool: ToolDefinition = {
+  name: "macro-indicator",
+  description: "获取宏观经济相关新闻与政策动态（GDP/CPI/PMI/货币政策/财政政策等宏观信息）",
+  parameters: { type: "object", properties: {}, required: [] },
+  async execute(_params, ctx) {
+    const res = await ctx.dataClient.news.globalNews(1);
+    if (!res.data) return JSON.stringify({ error: res.error, source: res.source });
+    const macroNews = res.data.filter((n: any) =>
+      n.category === "宏观" || n.category === "全球"
+    ).slice(0, 15);
+    return JSON.stringify({
+      source: res.source,
+      macroNews,
+      note: "宏观经济指标通过宏观新闻动态间接反映，包含政策动向、经济数据解读等信息",
+    });
+  },
+};
+
+const socialSentimentTool: ToolDefinition = {
+  name: "social-sentiment",
+  description: "获取市场情绪数据（热门题材股/北向资金动向/龙虎榜，反映市场情绪热度）",
+  parameters: { type: "object", properties: {}, required: [] },
+  async execute(_params, ctx) {
+    const [hotRes, northRes] = await Promise.all([
+      ctx.dataClient.signal.hotStocks(),
+      ctx.dataClient.signal.northBound(),
+    ]);
+    return JSON.stringify({
+      hotStocks: hotRes.data?.slice(0, 20) ?? [],
+      northBound: northRes.data?.slice(-20) ?? [],
+      note: "热门题材股反映短线情绪热度，北向资金反映外资情绪方向",
+    });
+  },
+};
+
+const volumeTool: ToolDefinition = {
+  name: "get-volume",
+  description: "获取成交量与资金流向数据（K线量价+分钟级资金流向，用于量价关系分析）",
+  parameters: { type: "object", properties: {}, required: [] },
+  async execute(_params, ctx) {
+    const [klineRes, flowRes] = await Promise.all([
+      ctx.dataClient.market.kline(ctx.target.code, { period: "daily", count: 60 }),
+      ctx.dataClient.signal.fundFlowMinute(ctx.target.code),
+    ]);
+    const bars = klineRes.data ?? [];
+    const recentBars = bars.slice(-20);
+    const avgVol = recentBars.length > 0
+      ? recentBars.reduce((s: number, b: any) => s + b.volume, 0) / recentBars.length
+      : 0;
+    const latestVol = recentBars.length > 0 ? recentBars[recentBars.length - 1].volume : 0;
+    return JSON.stringify({
+      symbol: ctx.target.code,
+      recent20Days: recentBars.map((b: any) => ({
+        date: b.date, open: b.open, close: b.close, volume: b.volume, amount: b.amount,
+      })),
+      avgVolume: avgVol,
+      latestVolume: latestVol,
+      volumeRatio: avgVol > 0 ? latestVol / avgVol : 1,
+      fundFlowMinute: flowRes.data?.slice(-20) ?? [],
+      source: `${klineRes.source}, ${flowRes.source}`,
+    });
+  },
+};
+
+const indicatorTool: ToolDefinition = {
+  name: "calc-indicators",
+  description: "计算技术指标（MACD/RSI/MA/布林带），基于最新60日K线收盘价",
+  parameters: { type: "object", properties: {}, required: [] },
+  async execute(_params, ctx) {
+    const klineRes = await ctx.dataClient.market.kline(ctx.target.code, { period: "daily", count: 60 });
+    const closes = (klineRes.data ?? []).map((b: any) => b.close).filter((c: any) => c != null);
+    if (closes.length < 20) {
+      return JSON.stringify({ error: "K线数据不足，无法计算指标", closesCount: closes.length });
+    }
+    const indicators = ctx.dataClient.fundamentals.indicators(closes);
+    if (!indicators) return JSON.stringify({ error: "指标计算失败" });
+    const latest = (arr: any[]) => arr.filter(v => v != null).slice(-1)[0] ?? null;
+    return JSON.stringify({
+      symbol: ctx.target.code,
+      closesCount: closes.length,
+      latestClose: closes[closes.length - 1],
+      macd: {
+        latest: latest((indicators as any).macd as any[]),
+        signal: ((indicators as any).macd as any[]).filter((v: any) => v != null).slice(-3),
+      },
+      rsi: { latest: latest((indicators as any).rsi as any[]) },
+      ma: Object.fromEntries(
+        Object.entries((indicators as any).ma as Record<string, any[]>).map(([k, v]) => [k, latest(v)])
+      ),
+      boll: {
+        latest: latest((indicators as any).boll as any[]),
+        position: (() => {
+          const b = latest((indicators as any).boll as any[]);
+          if (!b) return "unknown";
+          const price = closes[closes.length - 1];
+          if (price >= b.upper * 0.98) return "near_upper";
+          if (price <= b.lower * 1.02) return "near_lower";
+          return "mid_range";
+        })(),
+      },
+      calculatedAt: Date.now(),
+    });
+  },
+};
+
 // ─── New tools ───
 
 const dragonTigerTool: ToolDefinition = {
@@ -179,4 +286,8 @@ export const toolsByName = new Map<string, ToolDefinition>([
   ["shareholders", shareholdersTool],
   ["hot_stocks", hotStocksTool],
   ["north_bound", northBoundTool],
+  ["macro_indicator", macroIndicatorTool],
+  ["social_sentiment", socialSentimentTool],
+  ["volume", volumeTool],
+  ["indicator", indicatorTool],
 ]);

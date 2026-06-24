@@ -69,8 +69,11 @@ export function TopNav() {
           {/* Hamburger (mobile only) */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
+            onMouseDown={(e) => e.stopPropagation()}
             className="md:hidden flex items-center justify-center w-9 h-9 rounded-md text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 transition-colors"
             aria-label={menuOpen ? "关闭菜单" : "打开菜单"}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
           >
             {menuOpen ? (
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -92,7 +95,7 @@ export function TopNav() {
 
       {/* Mobile dropdown menu */}
       {menuOpen && (
-        <div ref={menuRef} className="md:hidden border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md">
+        <div ref={menuRef} id="mobile-menu" className="md:hidden border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-md">
           <div className="px-2 py-2 space-y-1">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname.startsWith(item.href);

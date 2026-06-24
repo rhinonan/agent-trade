@@ -3,24 +3,18 @@ import { useRef, useEffect } from "react";
 import { useChatStream } from "@/hooks/useChatStream.js";
 import { MessageBubble } from "./MessageBubble.js";
 import { SystemMessage } from "./SystemMessage.js";
-import { ChatInput } from "./ChatInput.js";
-import type { AgentInfo } from "./types.js";
 
 interface ChatPanelProps {
   sessionId: string;
-  agents: AgentInfo[];
 }
 
-export function ChatPanel({ sessionId, agents }: ChatPanelProps) {
-  const { messages, status, connected, sendMessage, resumeSession } = useChatStream(sessionId);
+export function ChatPanel({ sessionId }: ChatPanelProps) {
+  const { messages, status } = useChatStream(sessionId);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const isPaused = status === "PAUSED";
-  const isStopped = status === "STOPPED";
 
   // Find the index of the last agent message
   let lastAgentMsgIndex = -1;
@@ -47,14 +41,6 @@ export function ChatPanel({ sessionId, agents }: ChatPanelProps) {
              : "分析完成"}
           </span>
         </div>
-        {isPaused && (
-          <button
-            onClick={resumeSession}
-            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors"
-          >
-            继续分析
-          </button>
-        )}
       </div>
 
       {/* Messages */}
@@ -77,13 +63,6 @@ export function ChatPanel({ sessionId, agents }: ChatPanelProps) {
         })}
         <div ref={bottomRef} />
       </div>
-
-      {/* Input */}
-      <ChatInput
-        agents={agents}
-        onSend={sendMessage}
-        disabled={isStopped}
-      />
     </div>
   );
 }
