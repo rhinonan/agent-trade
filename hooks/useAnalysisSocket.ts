@@ -45,6 +45,37 @@ export interface DebateYieldEvent {
   reason: string;
 }
 
+export interface ToolCallEvent {
+  tool: string;
+  args: Record<string, unknown>;
+  ts: number;
+}
+
+export interface ToolResultEvent {
+  tool: string;
+  result: string;
+  ts: number;
+  isError?: boolean;
+}
+
+export type AgentStreamStatus =
+  | "thinking"
+  | "calling_tool"
+  | "writing"
+  | "done";
+
+export interface AgentStream {
+  nodeId: string;
+  agentName: string;
+  status: AgentStreamStatus;
+  toolCalls: ToolCallEvent[];
+  toolResults: Map<string, ToolResultEvent>;
+  conclusion: string;
+  reasoning: string;
+  finding: Finding | null;
+  startedAt: number;
+}
+
 // ——— Hook ———
 
 export function useAnalysisSocket(sessionId: string) {
@@ -54,6 +85,9 @@ export function useAnalysisSocket(sessionId: string) {
   const [nodes, setNodes] = useState<NodeState[]>([]);
   const [debateRounds, setDebateRounds] = useState<DebateRoundEvent[]>([]);
   const [yields, setYields] = useState<DebateYieldEvent[]>([]);
+  const [agentStreams, setAgentStreams] = useState<
+    Map<string, AgentStream>
+  >(new Map());
   const [status, setStatus] = useState<"running" | "complete" | "error">(
     "running",
   );
@@ -206,6 +240,28 @@ export function useAnalysisSocket(sessionId: string) {
             : n,
         ),
       );
+      // Mark the agent stream as done and attach finding
+      setAgentStreams((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(payload.nodeId);
+        if (existing) {
+          const finding = payload.findings?.[0];
+          next.set(payload.nodeId, {
+            ...existing,
+            status: "done",
+            finding: finding ? {
+              step: payload.nodeId,
+              agent: finding.agent,
+              conclusion: finding.conclusion,
+              reasoning: finding.reasoning ? [finding.reasoning] : undefined,
+              sentiment: finding.sentiment,
+              confidence: finding.confidence,
+              timestamp: Date.now(),
+            } : null,
+          });
+        }
+        return next;
+      });
       // Merge findings
       if (payload.findings && payload.findings.length > 0) {
         setFindings((prev) => [
@@ -253,6 +309,111 @@ export function useAnalysisSocket(sessionId: string) {
       setYields((prev) => [...prev, payload]);
     });
 
+    // —— Agent-level granular events ——
+
+    socket.on(WS_EVENTS.AGENT_THINKING, (payload: {
+      nodeId: string;
+      agentName: string;
+    }) => {
+      setAgentStreams((prev) => {
+        const next = new Map(prev);
+        if (!next.has(payload.nodeId)) {
+          next.set(payload.nodeId, {
+            nodeId: payload.nodeId,
+            agentName: payload.agentName,
+            status: "thinking",
+            toolCalls: [],
+            toolResults: new Map(),
+            conclusion: "",
+            reasoning: "",
+            finding: null,
+            startedAt: Date.now(),
+          });
+        } else {
+          const existing = next.get(payload.nodeId)!;
+          next.set(payload.nodeId, {
+            ...existing,
+            agentName: payload.agentName,
+            status: "thinking",
+          });
+        }
+        return next;
+      });
+    });
+
+    socket.on(WS_EVENTS.AGENT_TOOL_CALL, (payload: {
+      nodeId: string;
+      agentName: string;
+      tool: string;
+      args: Record<string, unknown>;
+      ts: number;
+    }) => {
+      setAgentStreams((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(payload.nodeId);
+        if (existing) {
+          next.set(payload.nodeId, {
+            ...existing,
+            agentName: payload.agentName,
+            status: "calling_tool",
+            toolCalls: [
+              ...existing.toolCalls,
+              { tool: payload.tool, args: payload.args, ts: payload.ts },
+            ],
+          });
+        }
+        return next;
+      });
+    });
+
+    socket.on(WS_EVENTS.AGENT_TOOL_RESULT, (payload: {
+      nodeId: string;
+      agentName: string;
+      tool: string;
+      result: string;
+      ts: number;
+    }) => {
+      setAgentStreams((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(payload.nodeId);
+        if (existing) {
+          const newResults = new Map(existing.toolResults);
+          newResults.set(payload.tool, {
+            tool: payload.tool,
+            result: payload.result,
+            ts: payload.ts,
+          });
+          next.set(payload.nodeId, {
+            ...existing,
+            toolResults: newResults,
+          });
+        }
+        return next;
+      });
+    });
+
+    socket.on(WS_EVENTS.AGENT_WRITING, (payload: {
+      nodeId: string;
+      agentName: string;
+      conclusion: string;
+      reasoning: string;
+    }) => {
+      setAgentStreams((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(payload.nodeId);
+        if (existing) {
+          next.set(payload.nodeId, {
+            ...existing,
+            agentName: payload.agentName,
+            status: "writing",
+            conclusion: payload.conclusion,
+            reasoning: payload.reasoning,
+          });
+        }
+        return next;
+      });
+    });
+
     // —— Connection lifecycle ——
 
     socket.on("disconnect", () => setConnected(false));
@@ -267,5 +428,5 @@ export function useAnalysisSocket(sessionId: string) {
     };
   }, [connect]);
 
-  return { connected, findings, steps, nodes, debateRounds, yields, status };
+  return { connected, findings, steps, nodes, debateRounds, yields, status, agentStreams };
 }
