@@ -59,7 +59,7 @@ describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
     expect(screen.getByText("bear")).toBeDefined();
   });
 
-  it("renders ConclusionCard when a judge finding exists", () => {
+  it("renders judge finding as regular agent bubble", () => {
     const findings = [
       {
         step: "final",
@@ -76,11 +76,11 @@ describe("AnalysisLiveClient (with useAnalysisSocket)", () => {
     );
 
     render(<AnalysisLiveClient sessionId="test-123" />);
-    // "Overall neutral" appears in both the agent bubble and the conclusion card
-    expect(screen.getByText("综合研判")).toBeDefined();
+    // Judge is now rendered as a regular AgentBubble, no special "综合研判" card
+    expect(screen.queryByText("综合研判")).toBeNull();
   });
 
-  it("does not render ConclusionCard when no judge finding", () => {
+  it("does not render special judge card when no judge finding", () => {
     const findings = [
       {
         step: "s1",

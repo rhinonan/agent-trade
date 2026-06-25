@@ -378,10 +378,12 @@ export function useAnalysisSocket(sessionId: string) {
         const existing = next.get(payload.nodeId);
         if (existing) {
           const newResults = new Map(existing.toolResults);
+          const isError = payload.result?.startsWith("Error:") ?? false;
           newResults.set(`${payload.tool}-${payload.ts}`, {
             tool: payload.tool,
             result: payload.result,
             ts: payload.ts,
+            isError,
           });
           next.set(payload.nodeId, {
             ...existing,
@@ -401,15 +403,20 @@ export function useAnalysisSocket(sessionId: string) {
       setAgentStreams((prev) => {
         const next = new Map(prev);
         const existing = next.get(payload.nodeId);
-        if (existing) {
-          next.set(payload.nodeId, {
-            ...existing,
-            agentName: payload.agentName,
-            status: "writing",
-            conclusion: payload.conclusion,
-            reasoning: payload.reasoning,
-          });
-        }
+        // Create-or-update: AGENT_WRITING may arrive before AGENT_THINKING
+        // because runner.ts emits onNodeStart only after the stream yields
+        // (post node-completion), while onAgentWriting fires inside the node.
+        next.set(payload.nodeId, {
+          nodeId: payload.nodeId,
+          agentName: existing?.agentName ?? payload.agentName,
+          status: "writing",
+          toolCalls: existing?.toolCalls ?? [],
+          toolResults: existing?.toolResults ?? new Map(),
+          conclusion: payload.conclusion,
+          reasoning: payload.reasoning,
+          finding: existing?.finding ?? null,
+          startedAt: existing?.startedAt ?? Date.now(),
+        });
         return next;
       });
     });

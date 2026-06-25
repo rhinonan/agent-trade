@@ -4,7 +4,7 @@ import type { RoleLoader } from "../role-loader/loader.js";
 import { WorkflowState } from "./state.js";
 import { buildAgentNode } from "./nodes.js";
 import { buildDebateSubgraph } from "./debate.js";
-import { interpolateTemplate } from "../role-loader/loader.js";
+
 import type { Runnable } from "@langchain/core/runnables";
 import type { AStockClient } from "../data-sdk/client.js";
 
@@ -46,7 +46,10 @@ export function buildStateGraph(
           `Agent "${node.agent}" not found for node "${node.id}" in workflow "${workflow.name}"`
         );
       }
-      const prompt = interpolateTemplate(node.prompt ?? `分析 {{target}}`);
+      // Task prompt is passed as the {input} value to the LangChain agent template,
+      // NOT as a LangChain template itself.  resolveStateVariables() handles
+      // {{target}} and other runtime state variables at invocation time.
+      const prompt = node.prompt ?? `分析 {{target}}`;
       graph.addNode(node.id, buildAgentNode(agent, prompt, llmFactory, dataClient, node.id, agentCallbacks));
     }
   }

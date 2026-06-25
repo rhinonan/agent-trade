@@ -39,9 +39,9 @@ describe("AgentBubble", () => {
     });
   });
 
-  it("shows toggle button for tool visibility", () => {
+  it("shows toggle button for expand/collapse", () => {
     render(<AgentBubble stream={mockStream({ toolCalls: [] })} />);
-    expect(screen.getByText(/隐藏过程/)).toBeDefined();
+    expect(screen.getByText(/收起/)).toBeDefined();
   });
 
   it("shows thinking indicator when status is thinking", () => {

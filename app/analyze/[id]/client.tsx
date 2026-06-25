@@ -2,13 +2,10 @@
 import { useAnalysisSocket } from "@/hooks/useAnalysisSocket";
 import { StepProgress } from "@/components/analysis/StepProgress";
 import { LiveDebatePanel } from "@/components/analysis/LiveDebatePanel";
-import { ConclusionCard } from "@/components/analysis/ConclusionCard";
 
 export function AnalysisLiveClient({ sessionId }: { sessionId: string }) {
   const { connected, findings, steps, nodes, agentStreams, status } =
     useAnalysisSocket(sessionId);
-
-  const judgeFinding = findings.find((f) => f.agent === "judge");
 
   return (
     <div>
@@ -17,14 +14,6 @@ export function AnalysisLiveClient({ sessionId }: { sessionId: string }) {
         agentStreams={agentStreams}
         isRunning={status === "running"}
       />
-      {judgeFinding && (
-        <ConclusionCard
-          conclusion={judgeFinding.conclusion}
-          reasoning={judgeFinding.reasoning ?? []}
-          sentiment={judgeFinding.sentiment}
-          confidence={judgeFinding.confidence}
-        />
-      )}
       {status === "running" && (
         <p
           className={`text-sm mt-4 ${

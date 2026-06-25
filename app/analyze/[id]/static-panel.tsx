@@ -1,7 +1,6 @@
 "use client";
 import { useMemo } from "react";
 import { LiveDebatePanel } from "@/components/analysis/LiveDebatePanel";
-import { ConclusionCard } from "@/components/analysis/ConclusionCard";
 import type { AgentStream } from "@/hooks/useAnalysisSocket";
 
 interface Finding {
@@ -14,27 +13,18 @@ interface Finding {
   reasoning?: string[];
 }
 
-interface JudgeAnalysis {
-  conclusion: string;
-  reasoning: string[];
-  sentiment: string;
-  confidence: number;
-}
-
 interface Props {
   findings: Finding[];
-  judgeAnalysis: JudgeAnalysis | null;
 }
 
 /**
  * Converts static findings from the DB into agentStreams Map for
  * LiveDebatePanel consumption on completed (non-live) analysis pages.
  */
-export function StaticFindingsPanel({ findings, judgeAnalysis }: Props) {
+export function StaticFindingsPanel({ findings }: Props) {
   const agentStreams = useMemo(() => {
     const map = new Map<string, AgentStream>();
     for (const f of findings) {
-      if (f.agent === "judge") continue; // judge shown in ConclusionCard
       const key = f.step || f.agent;
       map.set(key, {
         nodeId: key,
@@ -51,22 +41,10 @@ export function StaticFindingsPanel({ findings, judgeAnalysis }: Props) {
     return map;
   }, [findings]);
 
-  const hasFindings = findings.some((f) => f.agent !== "judge");
-
   return (
-    <>
-      <LiveDebatePanel
-        agentStreams={agentStreams}
-        isRunning={false}
-      />
-      {judgeAnalysis && (
-        <ConclusionCard
-          conclusion={judgeAnalysis.conclusion}
-          reasoning={judgeAnalysis.reasoning}
-          sentiment={judgeAnalysis.sentiment}
-          confidence={judgeAnalysis.confidence}
-        />
-      )}
-    </>
+    <LiveDebatePanel
+      agentStreams={agentStreams}
+      isRunning={false}
+    />
   );
 }

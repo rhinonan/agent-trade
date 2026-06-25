@@ -1,6 +1,4 @@
 import { AnalysisHeader } from "@/components/analysis/AnalysisHeader";
-import { LiveDebatePanel } from "@/components/analysis/LiveDebatePanel";
-import { ConclusionCard } from "@/components/analysis/ConclusionCard";
 import { DataPanel } from "@/components/analysis/DataPanel";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { getDb } from "@/lib/db/client.js";
@@ -52,10 +50,6 @@ export default async function AnalysisPage({
         ) : (
           <StaticFindingsPanel
             findings={context.findings ?? []}
-            judgeAnalysis={(() => {
-              const judgeFinding = context.findings?.find((f: any) => f.agent === "judge");
-              return judgeFinding?.analysis ?? null;
-            })()}
           />
         )}
       </div>

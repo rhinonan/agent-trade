@@ -9,6 +9,7 @@ import type { WorkflowState } from "./state.js";
 import type { ToolDefinition, ToolContext, PropertySchema } from "../tools/types.js";
 import type { AStockClient } from "../data-sdk/client.js";
 import { createLogger } from "../logger.js";
+import { AgentStreamCallbackHandler } from "./callback-handler.js";
 
 const log = createLogger("nodes");
 
@@ -109,6 +110,9 @@ function resolveStateVariables(template: string, state: State): string {
 
   // {{target}}
   result = result.replace(/\{\{target\}\}/g, state.target);
+
+  // Also handle {target} (single brace) — some callers pre-convert via interpolateTemplate
+  result = result.replace(/\{target\}/g, state.target);
 
   // {{round}}
   result = result.replace(/\{\{round\}\}/g, String(state.round ?? 0));
@@ -314,8 +318,17 @@ export function buildAgentNode(
       maxSteps: compiled.maxToolSteps,
     });
 
+    // Use LangChain callback handler for real-time tool call/result events
+    // emitted *during* agent execution instead of after it completes.
+    const streamHandler = callbacks
+      ? new AgentStreamCallbackHandler(nodeId, compiled.id, callbacks)
+      : undefined;
+
     const startMs = Date.now();
-    const result = await executor.invoke({ input: resolvedPrompt });
+    const result = await executor.invoke(
+      { input: resolvedPrompt },
+      streamHandler ? { callbacks: [streamHandler] } : undefined,
+    );
     const latencyMs = Date.now() - startMs;
 
     log.verbose("LLM response (tools)", {
@@ -325,30 +338,6 @@ export function buildAgentNode(
       intermediateSteps: (result as any).intermediateSteps?.length ?? 0,
       latencyMs,
     });
-
-    // Emit tool call/result events for real-time frontend display
-    const intermediateSteps = (result as any).intermediateSteps as
-      | { action: { tool: string; toolInput: Record<string, unknown> }; observation: string }[]
-      | undefined;
-    if (intermediateSteps && callbacks) {
-      const agentName = compiled.id;
-      for (const step of intermediateSteps) {
-        await callbacks.onToolCall?.(
-          nodeId,
-          agentName,
-          step.action.tool,
-          step.action.toolInput,
-        );
-        await callbacks.onToolResult?.(
-          nodeId,
-          agentName,
-          step.action.tool,
-          typeof step.observation === "string"
-            ? step.observation
-            : JSON.stringify(step.observation),
-        );
-      }
-    }
 
     const outputText = result.output as string;
 
