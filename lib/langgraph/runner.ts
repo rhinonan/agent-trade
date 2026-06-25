@@ -28,6 +28,29 @@ export interface WorkflowRunCallbacks {
 // ——— YAML loading ———
 
 /**
+ * Compute the required LangGraph recursion limit from the workflow config.
+ *
+ * Each debate round uses ~8 steps (speaker → route → speaker → route →
+ * check_yield → route → increment_round → route). With max_rounds=50, we
+ * need ~400+ steps. The LangGraph default of 25 is only enough for ~3 rounds.
+ */
+function computeRecursionLimit(workflow: WorkflowYaml): number {
+  let limit = 50; // base for simple workflows without debate
+
+  for (const node of workflow.nodes) {
+    if (node.type === "debate") {
+      const maxRounds = node.max_rounds ?? 10;
+      // 10 steps per round (8 actual + 2 buffer) + overhead for
+      // START routing, set_max_end, and parent graph nodes
+      const needed = 100 + maxRounds * 10;
+      limit = Math.max(limit, needed);
+    }
+  }
+
+  return limit;
+}
+
+/**
  * Resolve the roles directory relative to the repo root.
  * Roles live at <repo-root>/roles/.
  */
@@ -154,9 +177,15 @@ export async function runWorkflow(
 
   let finalState = initialState;
 
+  // Compute recursion limit from debate node configs.
+  // Each debate round uses ~8 LangGraph steps (speaker + route + check_yield + increment_round).
+  // Default LangGraph limit is 25, which only allows ~3 rounds — far too low.
+  const recursionLimit = computeRecursionLimit(workflow);
+
   const app = compiled.graph.compile();
   for await (const event of await app.stream(initialState, {
     streamMode: "updates",
+    recursionLimit,
   })) {
     for (const [nodeId, update] of Object.entries(event)) {
       const agentName = agentNameMap.get(nodeId) ?? nodeId;
