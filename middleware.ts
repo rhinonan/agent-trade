@@ -8,16 +8,26 @@ const PROTECTED_PREFIXES = ["/api/analyze", "/api/session"];
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // 非 API 路由或不需要保护的 API 直接放行
+  // 非 API 路由直接放行
   if (!PROTECTED_PREFIXES.some((p) => path.startsWith(p))) {
     return NextResponse.next();
   }
 
+  // 如果上游（SaaS 代理）已经注入了 x-user-id，直接信任放行
+  const proxiedUserId = request.headers.get("x-user-id");
+  if (proxiedUserId) {
+    const headers = new Headers(request.headers);
+    // 确保 x-user-role 也有默认值
+    if (!headers.get("x-user-role")) {
+      headers.set("x-user-role", "user");
+    }
+    return NextResponse.next({ request: { headers } });
+  }
+
+  // 独立运行时：NoopAuthAdapter 返回匿名用户，始终放行
   const auth = getAuthAdapter();
   const session = await auth.getSession(request);
 
-  // 开源版 NoopAuthAdapter 始终返回匿名用户，这里永远放行
-  // 商业版 RealAuthAdapter 认证失败时返回 null，触发 401
   if (!session) {
     return NextResponse.json(
       { error: "Unauthorized" },
@@ -25,7 +35,6 @@ export async function middleware(request: NextRequest) {
     );
   }
 
-  // 将用户身份注入 request header，下游 API route 通过 headers 读取
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-user-id", session.user.id);
   requestHeaders.set("x-user-role", session.user.role);

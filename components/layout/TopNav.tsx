@@ -39,7 +39,7 @@ export function TopNav() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-14">
+      <div className="mx-auto flex items-center justify-between px-4 h-14">
         {/* Brand */}
         <Link
           href="/"
