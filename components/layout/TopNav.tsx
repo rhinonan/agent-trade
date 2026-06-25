@@ -53,7 +53,7 @@ export function TopNav() {
         </Link>
 
         {/* Desktop nav items */}
-        <div className="hidden md:flex items-center gap-1">
+        <div className="hidden md:flex items-center gap-1 ml-auto">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname.startsWith(item.href);
             return (
