@@ -61,7 +61,7 @@ export default async function AnalysisPage({
       </div>
 
       {/* Right: Data panel (desktop sidebar) */}
-      <aside className="hidden md:flex md:w-[320px] lg:w-[440px] flex-shrink-0 border-l border-zinc-800 bg-zinc-950/50 overflow-y-auto">
+      <aside className="hidden md:flex md:w-[420px] lg:w-[540px] flex-shrink-0 border-l border-zinc-800 bg-zinc-950/50 overflow-y-auto">
         {dataPanelContent}
       </aside>
 
