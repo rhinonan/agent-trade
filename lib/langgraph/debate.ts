@@ -3,11 +3,14 @@ import { HumanMessage } from "@langchain/core/messages";
 import type { RoleLoader, CompiledAgent } from "../role-loader/loader.js";
 import { WorkflowState } from "./state.js";
 import { buildCheckYieldNode } from "./nodes.js";
+import { createLogger } from "../logger.js";
 
 import type { Runnable } from "@langchain/core/runnables";
 
 type LLMFactory = () => Runnable;
 type State = typeof WorkflowState.State;
+
+const log = createLogger("debate");
 
 interface DebateConfig {
   id: string;
@@ -37,6 +40,7 @@ export function buildDebateSubgraph(
   config: DebateConfig,
   loader: RoleLoader,
   llmFactory: LLMFactory,
+  agentCallbacks?: import("./compiler.js").AgentNodeCallbacks,
 ) {
   const graph = new StateGraph(WorkflowState);
   const participants = config.participants;
@@ -61,8 +65,8 @@ export function buildDebateSubgraph(
   const p1NodeId = `${p1.role}_speak`;
   const p2NodeId = `${p2.role}_speak`;
 
-  graph.addNode(p1NodeId, buildDebateSpeakerNode(p1Agent, llmFactory, p1.role, p2.role, config.prompt_template));
-  graph.addNode(p2NodeId, buildDebateSpeakerNode(p2Agent, llmFactory, p2.role, p1.role, config.prompt_template));
+  graph.addNode(p1NodeId, buildDebateSpeakerNode(p1Agent, llmFactory, p1.role, p2.role, config.prompt_template, config.id, agentCallbacks));
+  graph.addNode(p2NodeId, buildDebateSpeakerNode(p2Agent, llmFactory, p2.role, p1.role, config.prompt_template, config.id, agentCallbacks));
   graph.addNode("check_yield", buildCheckYieldNode(config.stop_when.field, config.stop_when.condition));
   graph.addNode("increment_round", incrementRoundNode);
   graph.addNode("set_max_end", (state: State): Partial<State> => ({
@@ -208,12 +212,28 @@ function buildDebateSpeakerNode(
   role: string,
   opponentRole: string,
   promptTemplate: string,
+  debateNodeId: string,
+  agentCallbacks?: import("./compiler.js").AgentNodeCallbacks,
 ) {
   return async (state: State): Promise<Partial<State>> => {
     const llm = llmFactory();
+    const round = state.round ?? 0;
+    const agentName = `${role}分析师`;
+
+    // Emit thinking event so the frontend shows the speaker is active
+    await agentCallbacks?.onAgentThinking?.(debateNodeId, agentName);
 
     // Build the prompt from the YAML prompt_template with variable interpolation
     const prompt = resolveDebateTemplate(promptTemplate, state, role, opponentRole);
+
+    log.verbose("LLM call", {
+      debateNode: debateNodeId,
+      role,
+      round,
+      promptLength: prompt.length,
+    });
+
+    const startMs = Date.now();
 
     // Invoke LLM with system prompt + debate prompt
     const messages = [
@@ -226,6 +246,16 @@ function buildDebateSpeakerNode(
       typeof response.content === "string"
         ? response.content
         : JSON.stringify(response.content);
+
+    const latencyMs = Date.now() - startMs;
+
+    log.verbose("LLM response", {
+      debateNode: debateNodeId,
+      role,
+      round,
+      responseLength: text.length,
+      latencyMs,
+    });
 
     // Try to parse structured output
     let parsed: unknown = text;
@@ -242,6 +272,20 @@ function buildDebateSpeakerNode(
         // keep as raw text
       }
     }
+
+    // Emit writing event so the frontend renders the argument text
+    const conclusion =
+      typeof parsed === "object" && parsed !== null
+        ? ((parsed as Record<string, unknown>).argument as string)
+          ?? ((parsed as Record<string, unknown>).conclusion as string)
+          ?? text.slice(0, 300)
+        : String(parsed).slice(0, 300);
+    const reasoning =
+      typeof parsed === "object" && parsed !== null
+        ? ((parsed as Record<string, unknown>).reasoning as string) ?? ""
+        : "";
+
+    await agentCallbacks?.onAgentWriting?.(debateNodeId, agentName, conclusion, reasoning);
 
     const findingsKey = `round_${state.round}_${role}`;
 

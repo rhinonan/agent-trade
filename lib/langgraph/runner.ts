@@ -7,6 +7,9 @@ import { getRoleLoader } from "../role-loader/loader.js";
 import { compileWorkflow } from "./compiler.js";
 import { createLLM, type AnalyzeOptions } from "../llm/create-llm.js";
 import { AStockClient } from "../data-sdk/client.js";
+import { createLogger } from "../logger.js";
+
+const log = createLogger("runner");
 
 // ——— Public interfaces ———
 
@@ -20,6 +23,7 @@ export interface WorkflowRunCallbacks {
   onNodeStart?(nodeId: string, agentName: string): Promise<void>;
   onNodeEnd?(nodeId: string, result: unknown): Promise<void>;
   onStreamChunk?(chunk: string): Promise<void>;
+  onAgentThinking?(nodeId: string, agentName: string): Promise<void>;
   onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
   onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
   onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
@@ -153,7 +157,11 @@ export async function runWorkflow(
   const loader = getRoleLoader();
   const llmFactory = () => createLLM(options);
   const dataClient = new AStockClient();
+
+  log.info("Compiling workflow", { workflow: workflow.name, target, provider: options.provider ?? "default" });
+
   const compiled = compileWorkflow(workflow, loader, llmFactory, dataClient, {
+    onAgentThinking: callbacks.onAgentThinking,
     onToolCall: callbacks.onToolCall,
     onToolResult: callbacks.onToolResult,
     onAgentWriting: callbacks.onAgentWriting,
@@ -181,20 +189,31 @@ export async function runWorkflow(
   // Each debate round uses ~8 LangGraph steps (speaker + route + check_yield + increment_round).
   // Default LangGraph limit is 25, which only allows ~3 rounds — far too low.
   const recursionLimit = computeRecursionLimit(workflow);
+  log.debug("Computed recursion limit", { workflow: workflow.name, recursionLimit });
 
   const app = compiled.graph.compile();
+  log.info("Streaming workflow", { workflow: workflow.name, target });
   for await (const event of await app.stream(initialState, {
     streamMode: "updates",
     recursionLimit,
   })) {
     for (const [nodeId, update] of Object.entries(event)) {
       const agentName = agentNameMap.get(nodeId) ?? nodeId;
+      log.debug("Node start", { workflow: workflow.name, nodeId, agentName });
       await callbacks.onNodeStart?.(nodeId, agentName);
       // Merge the partial state update into the accumulated state
       finalState = { ...finalState, ...(update as typeof initialState) };
       await callbacks.onNodeEnd?.(nodeId, update);
+      log.debug("Node end", { workflow: workflow.name, nodeId, agentName });
     }
   }
+
+  log.info("Workflow complete", {
+    workflow: workflow.name,
+    findingsCount: Object.keys(finalState.findings).length,
+    messagesCount: finalState.messages.length,
+    stopReason: finalState.stop_reason,
+  });
 
   return {
     findings: finalState.findings,

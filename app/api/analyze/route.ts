@@ -9,6 +9,9 @@ import { getDb } from "@/lib/db/client.js";
 import { AnalysisRepo } from "@/lib/db/analysis-repo.js";
 import { getQuotaHook, type QuotaHook } from "@/lib/auth/types.js";
 import { runWorkflow, loadWorkflowYaml, ensureAgentsLoaded } from "@/lib/langgraph/runner.js";
+import { createLogger } from "@/lib/logger.js";
+
+const log = createLogger("api:analyze");
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -26,12 +29,15 @@ export async function POST(req: NextRequest) {
   const sessionId = randomUUID();
   const userId = req.headers.get("x-user-id") ?? "anonymous";
 
+  log.info("Analysis requested", { sessionId, workflow, code, provider, userId });
+
   // 配额预扣（私有仓库注入的 QuotaHook）
   if (userId !== "anonymous") {
     const quotaHook = getQuotaHook();
     if (quotaHook) {
       const ok = await quotaHook.tryConsume(userId);
       if (!ok) {
+        log.warn("Quota exhausted", { userId });
         return NextResponse.json(
           { error: "本月分析次数已用完，请升级订阅" },
           { status: 429 }
@@ -87,6 +93,7 @@ async function runAnalysis(
     }
 
     const target = await resolveTarget(dto);
+    log.info("Target resolved", { sessionId, target: target.code, name: target.name });
 
     ns.to(sessionId).emit(WS_EVENTS.ANALYSIS_START, {
       target: { type: target.type, code: target.code, name: target.name },
@@ -108,6 +115,7 @@ async function runAnalysis(
       nodeMap.set(node.id, node);
     }
 
+    log.info("Starting workflow execution", { sessionId, workflow: dto.workflow });
     const langGraphResult = await runWorkflow(
       workflowYaml,
       target.code,
@@ -189,6 +197,12 @@ async function runAnalysis(
             }
           }
         },
+        onAgentThinking: async (nodeId, agentName) => {
+          ns.to(sessionId).emit(WS_EVENTS.AGENT_THINKING, {
+            nodeId,
+            agentName,
+          });
+        },
         onToolCall: async (nodeId, agentName, tool, args) => {
           ns.to(sessionId).emit(WS_EVENTS.AGENT_TOOL_CALL, {
             nodeId,
@@ -218,13 +232,27 @@ async function runAnalysis(
       },
     );
 
+    // Convert findings Record → array for both DB persistence and WebSocket
+    const findingsArray = Object.entries(langGraphResult.findings).map(([nodeId, value]) => {
+      const v = value as Record<string, unknown> | undefined;
+      return {
+        step: nodeId,
+        agent: nodeId,
+        conclusion: (v?.conclusion as string) ?? JSON.stringify(value).slice(0, 200),
+        reasoning: (v?.reasoning as string) ?? "",
+        sentiment: (v?.sentiment as string) ?? "neutral",
+        confidence: (v?.confidence as number) ?? 0,
+        timestamp: Date.now(),
+      };
+    });
+
     // Persist results
     repo.update(sessionId, {
       status: "complete",
       context: JSON.stringify({
         target,
         workflowName: dto.workflow ?? "earnings-debate",
-        findings: langGraphResult.findings,
+        findings: findingsArray,
         debateRounds: [],
       }),
     });
@@ -233,23 +261,15 @@ async function runAnalysis(
       context: {
         target,
         workflowName: dto.workflow ?? "earnings-debate",
-        findings: Object.entries(langGraphResult.findings).map(([nodeId, value]) => {
-          const v = value as Record<string, unknown> | undefined;
-          return {
-            step: nodeId,
-            agent: nodeId,
-            conclusion: (v?.conclusion as string) ?? JSON.stringify(value).slice(0, 200),
-            reasoning: (v?.reasoning as string) ?? "",
-            sentiment: (v?.sentiment as string) ?? "neutral",
-            confidence: (v?.confidence as number) ?? 0,
-            timestamp: Date.now(),
-          };
-        }),
+        findings: findingsArray,
         debateRounds: [],
       },
     });
+
+    log.info("Analysis complete", { sessionId, findingsCount: Object.keys(langGraphResult.findings).length });
   } catch (err) {
     // 失败 — 退还配额（涵盖 resolveTarget / workflow 校验 / scheduler 等所有早期失败）
+    log.error(`Analysis ${sessionId} failed`, { error: (err as Error).message });
     console.error(`Analysis ${sessionId} failed:`, err);
     if (quotaHook) {
       quotaHook.release(dto.userId).catch(e =>

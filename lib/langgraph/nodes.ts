@@ -8,6 +8,9 @@ import type { CompiledAgent } from "../role-loader/loader.js";
 import type { WorkflowState } from "./state.js";
 import type { ToolDefinition, ToolContext, PropertySchema } from "../tools/types.js";
 import type { AStockClient } from "../data-sdk/client.js";
+import { createLogger } from "../logger.js";
+
+const log = createLogger("nodes");
 
 type State = typeof WorkflowState.State;
 
@@ -213,11 +216,29 @@ export function buildAgentNode(
         ...(await compiled.systemPrompt.formatMessages({})),
         new HumanMessage(resolvedPrompt),
       ];
+
+      log.verbose("LLM invoke (simple)", {
+        nodeId,
+        agentName: compiled.id,
+        promptLength: resolvedPrompt.length,
+        tools: 0,
+      });
+
+      const startMs = Date.now();
       const response = await llm.invoke(messages);
+      const latencyMs = Date.now() - startMs;
+
       const text =
         typeof response.content === "string"
           ? response.content
           : JSON.stringify(response.content);
+
+      log.verbose("LLM response (simple)", {
+        nodeId,
+        agentName: compiled.id,
+        responseLength: text.length,
+        latencyMs,
+      });
 
       // Emit writing event for frontend typewriter (simple path, no tools)
       if (callbacks) {
@@ -285,7 +306,25 @@ export function buildAgentNode(
       returnIntermediateSteps: true,
     });
 
+    log.verbose("LLM invoke (tools)", {
+      nodeId,
+      agentName: compiled.id,
+      promptLength: resolvedPrompt.length,
+      toolCount: structuredTools.length,
+      maxSteps: compiled.maxToolSteps,
+    });
+
+    const startMs = Date.now();
     const result = await executor.invoke({ input: resolvedPrompt });
+    const latencyMs = Date.now() - startMs;
+
+    log.verbose("LLM response (tools)", {
+      nodeId,
+      agentName: compiled.id,
+      outputLength: String(result.output ?? "").length,
+      intermediateSteps: (result as any).intermediateSteps?.length ?? 0,
+      latencyMs,
+    });
 
     // Emit tool call/result events for real-time frontend display
     const intermediateSteps = (result as any).intermediateSteps as

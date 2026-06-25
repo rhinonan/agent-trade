@@ -37,7 +37,7 @@ export function buildStateGraph(
 
     if (node.type === "debate") {
       // Debate is a subgraph
-      const debateSubgraph = buildDebateSubgraph(node, loader, llmFactory);
+      const debateSubgraph = buildDebateSubgraph(node, loader, llmFactory, agentCallbacks);
       graph.addNode(node.id, debateSubgraph.compile() as any);
     } else {
       const agent = loader.getAgent(node.agent);

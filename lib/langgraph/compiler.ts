@@ -10,6 +10,7 @@ export interface CompiledWorkflow {
 }
 
 export interface AgentNodeCallbacks {
+  onAgentThinking?(nodeId: string, agentName: string): Promise<void>;
   onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
   onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
   onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
