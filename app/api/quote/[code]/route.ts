@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AStockClient } from "@/lib/data-sdk/index.js";
+import type { KlineBar } from "@/lib/data-sdk/types.js";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
 
   try {
+    const url = new URL(req.url);
+    const period = (url.searchParams.get("period") as "daily" | "weekly" | "monthly") || "daily";
+    const count = parseInt(url.searchParams.get("count") || "2", 10);
+
     const client = new AStockClient();
-    const result = await client.market.kline(code, { period: "daily", count: 2 });
+    const result = await client.market.kline(code, { period, count: Math.max(count, 2) });
 
     if (!result.data || result.data.length === 0) {
       return NextResponse.json(
@@ -18,7 +23,7 @@ export async function GET(
       );
     }
 
-    const bars = result.data;
+    const bars: KlineBar[] = result.data;
     const latest = bars[bars.length - 1];
     const prev = bars.length >= 2 ? bars[bars.length - 2] : null;
 
@@ -26,7 +31,7 @@ export async function GET(
     const change = prev ? price - prev.close : 0;
     const changePercent = prev && prev.close !== 0 ? (change / prev.close) * 100 : 0;
 
-    return NextResponse.json({
+    const response: Record<string, unknown> = {
       symbol: code,
       price: Math.round(price * 100) / 100,
       change: Math.round(change * 100) / 100,
@@ -36,7 +41,14 @@ export async function GET(
       low: latest.low,
       volume: latest.volume,
       timestamp: Date.now(),
-    });
+    };
+
+    // Include bars when requesting more than just the latest 2 (quote-only mode)
+    if (count > 2) {
+      response.bars = bars;
+    }
+
+    return NextResponse.json(response);
   } catch (err) {
     console.error(`Quote error for ${code}:`, err);
     return NextResponse.json(
