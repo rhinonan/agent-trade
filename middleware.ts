@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getAuthAdapter } from "@/lib/auth/types.js";
 
 /** API 路由前缀——需要注入用户上下文 */
-const PROTECTED_PREFIXES = ["/api/analyze", "/api/session"];
+const PROTECTED_PREFIXES = ["/api/analyze", "/api/session", "/api/wishes"];
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
