@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
 import { migrate as migrate002 } from "./migrations/002-user-roles.js";
+import { migrate as migrate003 } from "./migrations/003-wishpool.js";
 
 let _db: Database.Database | null = null;
 
@@ -78,4 +79,7 @@ function runMigrations(db: Database.Database): void {
 
   // Migration 003: user_roles table
   migrate002(db);
+
+  // Migration 004: wishpool tables
+  migrate003(db);
 }
