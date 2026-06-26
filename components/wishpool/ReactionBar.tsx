@@ -4,7 +4,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { emojiLabel } from "@/lib/wishpool/utils.js";
-import { REACTION_EMOJIS } from "@/lib/wishpool/types.js";
 import type { ReactionCount, ReactionEmoji } from "@/lib/wishpool/types.js";
 
 export function ReactionBar({
@@ -19,12 +18,15 @@ export function ReactionBar({
   const [optimistic, setOptimistic] = useState<ReactionCount[]>(reactions);
 
   async function toggle(emoji: ReactionEmoji) {
-    const current = optimistic.find((r) => r.emoji === emoji);
-    const wasReacted = current?.reacted;
+    const intent: { action: "add" | "remove" } = { action: "add" };
 
-    // Optimistic update
-    setOptimistic((prev) =>
-      prev.map((r) => {
+    // Optimistic update – derive wasReacted from prev to avoid stale closure
+    setOptimistic((prev) => {
+      const current = prev.find((r) => r.emoji === emoji);
+      const wasReacted = current?.reacted;
+      intent.action = wasReacted ? "remove" : "add";
+
+      return prev.map((r) => {
         if (r.emoji === emoji) {
           return {
             ...r,
@@ -37,20 +39,24 @@ export function ReactionBar({
           return { ...r, count: r.count - 1, reacted: false };
         }
         return r;
-      }),
-    );
-
-    if (wasReacted) {
-      await fetch(`/api/wishes/${wishId}/reactions`, { method: "DELETE" });
-    } else {
-      await fetch(`/api/wishes/${wishId}/reactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emoji }),
       });
-    }
+    });
 
-    startTransition(() => router.refresh());
+    try {
+      if (intent.action === "remove") {
+        await fetch(`/api/wishes/${wishId}/reactions`, { method: "DELETE" });
+      } else {
+        await fetch(`/api/wishes/${wishId}/reactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emoji }),
+        });
+      }
+      startTransition(() => router.refresh());
+    } catch {
+      // Reset optimistic state to server truth on failure
+      setOptimistic(reactions);
+    }
   }
 
   return (
