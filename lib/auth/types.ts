@@ -26,6 +26,12 @@ export interface AuthAdapter {
 
   /** 查询当前已用配额 */
   getQuotaUsed(user: User): Promise<number>;
+
+  /** 检查用户能否管理心愿（编辑 / 删除） */
+  canManageWish?(userId: string, wishAuthorId: string, userRole: string): boolean;
+
+  /** 检查用户能否置顶心愿 */
+  canPinWish?(userRole: string): boolean;
 }
 
 /** 开源版默认实现——所有人匿名、不限配额 */
@@ -46,6 +52,14 @@ export class NoopAuthAdapter implements AuthAdapter {
 
   async getQuotaUsed(_user: User): Promise<number> {
     return 0;
+  }
+
+  canManageWish(_userId: string, _wishAuthorId: string, _userRole: string): boolean {
+    return true; // Open source: everyone can manage
+  }
+
+  canPinWish(_userRole: string): boolean {
+    return true; // Open source: everyone can pin
   }
 }
 
