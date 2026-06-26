@@ -30,19 +30,24 @@ export default function NewWishPage() {
     }
     setSubmitting(true);
     setError("");
-    const res = await fetch("/api/wishes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), body, tags }),
-    });
-    if (res.ok) {
-      const wish = await res.json();
-      router.push(`/wishpool/${wish.id}`);
-    } else {
-      const err = await res.json();
-      setError(err.error?.fieldErrors?.title?.[0] ?? "创建失败");
+    try {
+      const res = await fetch("/api/wishes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), body, tags }),
+      });
+      if (res.ok) {
+        const wish = await res.json();
+        router.push(`/wishpool/${wish.id}`);
+      } else {
+        const err = await res.json();
+        setError(err.error?.fieldErrors?.title?.[0] ?? "创建失败");
+      }
+    } catch {
+      setError("网络错误，请重试");
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   }
 
   return (
@@ -99,6 +104,7 @@ export default function NewWishPage() {
           <Button
             type="button"
             variant="ghost"
+            disabled={submitting}
             onClick={() => router.back()}
           >
             取消
