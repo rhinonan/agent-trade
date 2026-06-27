@@ -25,7 +25,7 @@ export default async function WishDetailPage({
   const comments = getComments(id);
 
   return (
-    <main className="relative z-10 min-h-[calc(100vh-3.5rem)] max-w-3xl mx-auto p-4 space-y-6">
+    <main className="relative z-10 min-h-[calc(100vh-3.5rem)] p-6 space-y-6">
       {/* Header */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">

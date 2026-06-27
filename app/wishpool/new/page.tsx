@@ -51,7 +51,7 @@ export default function NewWishPage() {
   }
 
   return (
-    <main className="relative z-10 min-h-[calc(100vh-3.5rem)] max-w-2xl mx-auto p-4 space-y-6">
+    <main className="relative z-10 min-h-[calc(100vh-3.5rem)] p-6 space-y-6">
       <h1 className="text-xl font-bold text-zinc-200">提新需求</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">

@@ -30,7 +30,7 @@ export default async function WishpoolPage({
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <main className="relative z-10 min-h-[calc(100vh-3.5rem)] max-w-3xl mx-auto p-4 space-y-4">
+    <main className="relative z-10 min-h-[calc(100vh-3.5rem)] p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-zinc-200">许愿池</h1>
         <span className="text-xs text-zinc-500">{total} 个心愿</span>
