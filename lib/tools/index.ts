@@ -1,11 +1,13 @@
 import { klineTool } from "./kline.js";
 import { macdTool, rsiTool, maTool } from "./indicator.js";
 import { webSearchTool } from "./web-search.js";
+import { webFetchTool } from "./web-fetch/index.js";
 import type { ToolDefinition } from "./types.js";
 
 export { klineTool } from "./kline.js";
 export { macdTool, rsiTool, maTool } from "./indicator.js";
 export { webSearchTool } from "./web-search.js";
+export { webFetchTool } from "./web-fetch/index.js";
 export type { ToolDefinition, ToolContext, PropertySchema } from "./types.js";
 
 // ─── Real tool implementations using AStockClient ───
@@ -293,4 +295,5 @@ export const toolsByName = new Map<string, ToolDefinition>([
   ["volume", volumeTool],
   ["indicator", indicatorTool],
   ["web_search", webSearchTool],
+  ["web_fetch", webFetchTool],
 ]);
