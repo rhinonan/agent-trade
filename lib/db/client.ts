@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { migrate as migrate002 } from "./migrations/002-user-roles.js";
 import { migrate as migrate003 } from "./migrations/003-wishpool.js";
+import { migrate as migrate004 } from "./migrations/004-analysis-events.js";
 
 let _db: Database.Database | null = null;
 
@@ -90,4 +91,7 @@ function runMigrations(db: Database.Database): void {
 
   // Migration 004: wishpool tables
   migrate003(db);
+
+  // Migration 004: analysis_events table
+  migrate004(db);
 }
