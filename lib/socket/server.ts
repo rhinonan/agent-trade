@@ -2,10 +2,18 @@ import type { Server as HttpServer } from "node:http";
 import { Server, type Socket } from "socket.io";
 import { WS_EVENTS } from "./events.js";
 
-// Use globalThis so the Socket.IO instance is shared between the custom server
-// (server.mjs / Node.js context) and webpack-compiled API route handlers.
+/**
+ * Socket.IO 服务器 — 实时 WebSocket 通信。
+ *
+ * 关键设计：通过 globalThis + Symbol 在 server.mjs（Node.js 自定义服务器）
+ * 和 webpack 编译的 API 路由之间共享 Socket.IO 实例。
+ * 不使用模块级变量是因为不同的编译上下文有各自的模块缓存。
+ */
+
+// 使用 globalThis 在自定义服务器（server.mjs）和 webpack 编译的 API 路由之间共享 Socket.IO 实例
 const GLOBAL_KEY = Symbol.for("agenttrade.socketio");
 
+/** 创建 Socket.IO 服务器，设置 /analysis 命名空间和处理连接/订阅逻辑 */
 export function createSocketServer(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: { origin: "*" },
@@ -32,7 +40,7 @@ export function createSocketServer(httpServer: HttpServer): Server {
     });
   });
 
-  // Store on globalThis so both server.mjs and webpack-compiled routes see the same instance
+  // 存入 globalThis，server.mjs 和 webpack 编译的路由均可访问同一实例
   (globalThis as any)[GLOBAL_KEY] = io;
   return io;
 }

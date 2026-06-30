@@ -7,34 +7,53 @@ import { createLogger } from "../logger.js";
 
 import type { Runnable } from "@langchain/core/runnables";
 
+/**
+ * 多轮对抗辩论子图 — agent-trade 的核心机制。
+ *
+ * 架构概述：
+ * - 两个 agent（多方/空方）交替发言，每轮各说一次
+ * - 每轮结束后检查是否有一方认输（yield）
+ * - 达到最大轮次时强制终止
+ * - 辩论结束后由旁白（narrator）总结
+ *
+ * 图结构：
+ *   START → (条件路由: meets_expectations?) → 先发言者
+ *   先发言者 → (条件路由) → 后发言者 → check_yield
+ *   check_yield → END (认输) | set_max_end (达最大轮次) | increment_round → 先发言者（循环）
+ *
+ * 先发言者路由策略：
+ * - 当 research.meets_expectations === false（业绩低于预期）时：空方先发言
+ * - 否则（true 或 undefined，业绩符合/超出预期）：多方先发言
+ * - 设计理由：让不利方先陈述观点，更符合真实辩论的公平性原则
+ *
+ * 节点 ID 设计：
+ * - 使用角色命名（如 "多方_speak"、"空方_speak"）而非位置命名（"p1_speak"、"p2_speak"）
+ * - 优点：日志可读性更好，路由逻辑更清晰，前端展示时可直接使用角色标签
+ */
+
 type LLMFactory = () => Runnable;
 type State = typeof WorkflowState.State;
 
 const log = createLogger("debate");
 
+/** 辩论配置接口 */
 interface DebateConfig {
+  /** 辩论节点 ID */
   id: string;
+  /** 参与者列表，每项包含 agent ID、角色名称（如"多方"/"空方"）和是否先发言标志 */
   participants: { agent: string; role: string; first?: boolean }[];
+  /** 最大辩论轮次 */
   max_rounds: number;
+  /** 终止条件：检查哪个字段，any（任一认输即停）/ all（双方均认输才停） */
   stop_when: { field: string; condition: "any" | "all" };
+  /** 辩论发言的 prompt 模板 */
   prompt_template: string;
 }
 
 /**
- * Build a debate subgraph with dynamic first-speaker routing.
+ * 构建多轮对抗辩论子图。
  *
- * Graph structure:
- *   START → (conditional: meets_expectations?) → first speaker
- *   first speaker → (conditional) → second speaker → check_yield
- *   check_yield → END (yield) | set_max_end (max rounds) | increment_round → first speaker
- *
- * When research.meets_expectations === false (below expectations):
- *   The bear (空方) speaks first.
- * Otherwise (true or undefined, at/above expectations):
- *   The bull (多方) speaks first.
- *
- * Node IDs are role-based (e.g. 多方_speak, 空方_speak) rather than
- * position-based (p1_speak, p2_speak).
+ * 详情见文件顶部的架构说明。
  */
 export function buildDebateSubgraph(
   config: DebateConfig,
@@ -49,8 +68,8 @@ export function buildDebateSubgraph(
     throw new Error("Debate currently supports exactly 2 participants");
   }
 
-  const p1 = participants[0]; // e.g. { agent: "earnings-bull", role: "多方" }
-  const p2 = participants[1]; // e.g. { agent: "earnings-bear", role: "空方" }
+  const p1 = participants[0]; // 如 { agent: "earnings-bull", role: "多方" }
+  const p2 = participants[1]; // 如 { agent: "earnings-bear", role: "空方" }
 
   const p1Agent = loader.getAgent(p1.agent);
   const p2Agent = loader.getAgent(p2.agent);
@@ -61,12 +80,12 @@ export function buildDebateSubgraph(
     );
   }
 
-  // Node IDs are role-based, not position-based
+  // 节点 ID 使用角色命名而非位置命名
   const p1NodeId = `${p1.role}_speak`;
   const p2NodeId = `${p2.role}_speak`;
 
-  graph.addNode(p1NodeId, buildDebateSpeakerNode(p1Agent, llmFactory, p1.role, p2.role, config.prompt_template, config.id, agentCallbacks));
-  graph.addNode(p2NodeId, buildDebateSpeakerNode(p2Agent, llmFactory, p2.role, p1.role, config.prompt_template, config.id, agentCallbacks));
+  graph.addNode(p1NodeId, buildDebateSpeakerNode(p1Agent, llmFactory, p1.role, p2.role, config.prompt_template, p1NodeId, agentCallbacks));
+  graph.addNode(p2NodeId, buildDebateSpeakerNode(p2Agent, llmFactory, p2.role, p1.role, config.prompt_template, p2NodeId, agentCallbacks));
   graph.addNode("check_yield", buildCheckYieldNode(config.stop_when.field, config.stop_when.condition));
   graph.addNode("increment_round", incrementRoundNode);
   graph.addNode("set_max_end", (state: State): Partial<State> => ({
@@ -76,11 +95,11 @@ export function buildDebateSubgraph(
   }));
   graph.addEdge("set_max_end" as any, END as any);
 
-  // Routing function: bear speaks first when earnings miss expectations
+  // 路由函数：业绩低于预期时空方先发言
   const routeToFirstSpeaker = (state: State): string => {
     const research = state.findings?.research as Record<string, unknown> | undefined;
-    // meets_expectations === false → below expectations → bear (空方) first
-    // Otherwise (true or undefined) → bull (多方) first
+    // meets_expectations === false → 低于预期 → 空方先发言
+    // true 或 undefined → 符合/超出预期 → 多方先发言
     const bearFirst = research?.meets_expectations === false;
     return bearFirst ? p2NodeId : p1NodeId;
   };
@@ -88,16 +107,14 @@ export function buildDebateSubgraph(
   // START → conditional to first speaker
   graph.addConditionalEdges(START as any, routeToFirstSpeaker);
 
-  // From p1 (e.g. 多方): if bear is first → p1 speaks second → check_yield;
-  // otherwise p1 speaks first → go to p2
+  // 从 p1（如多方）：如果空方先发言则 p1 第二个发言 → check_yield；否则 p1 先发言 → p2
   graph.addConditionalEdges(p1NodeId as any, (state: State) => {
     const research = state.findings?.research as Record<string, unknown> | undefined;
     const bearFirst = research?.meets_expectations === false;
     return bearFirst ? "check_yield" : p2NodeId;
   });
 
-  // From p2 (e.g. 空方): if bear is first → p2 speaks first → go to p1;
-  // otherwise p2 speaks second → check_yield
+  // 从 p2（如空方）：如果空方先发言则 p2 先发言 → p1；否则 p2 第二个发言 → check_yield
   graph.addConditionalEdges(p2NodeId as any, (state: State) => {
     const research = state.findings?.research as Record<string, unknown> | undefined;
     const bearFirst = research?.meets_expectations === false;
@@ -117,25 +134,27 @@ export function buildDebateSubgraph(
   return graph;
 }
 
-// ——— Internal nodes ———
+// ——— 内部节点 ———
 
 /**
- * Increment the debate round counter by 1.
- * Pure state transformation — no LLM call.
+ * 辩论轮次计数器 +1。
+ * 纯状态变换 — 无 LLM 调用，仅递增 round 字段。
  */
 function incrementRoundNode(state: State): Partial<State> {
   return { round: (state.round || 0) + 1 };
 }
 
 /**
- * Resolve debate-specific template variables in a prompt string.
+ * 解析辩论专用的模板变量。
  *
- * Supported variables:
- * - `{{role}}` → current speaker's role (e.g. "bull", "bear")
- * - `{{round}}` → current debate round number
- * - `{{opponent.last_argument}}` → last argument text from the opposing role
- * - `{{findings}}` → formatted JSON list of all findings
- * - `{{target}}` → the analysis target code
+ * 支持的变量：
+ * - `{{role}}` → 当前发言者的角色（如"多方"、"空方"）
+ * - `{{round}}` → 当前辩论轮次
+ * - `{{opponent.last_argument}}` → 对方上一轮的论点文本
+ * - `{{findings}}` → 所有分析结果的格式化 JSON 列表
+ * - `{{target}}` → 分析目标代码
+ * - `{{state.<node_id>}}` → 指定节点的完整分析结果
+ * - `{{state.<node_id>.<field>}}` → 指定节点结果的特定字段
  */
 function resolveDebateTemplate(
   template: string,
@@ -149,11 +168,11 @@ function resolveDebateTemplate(
   result = result.replace(/\{\{round\}\}/g, String(state.round ?? 0));
   result = result.replace(/\{\{target\}\}/g, state.target);
 
-  // {{opponent.last_argument}}
+  // {{opponent.last_argument}} — 对方上一轮的论点
   result = result.replace(
     /\{\{opponent\.last_argument\}\}/g,
     () => {
-      // Collect all opponent messages from the current debate
+      // 从 messages 数组中收集对方所有发言，取最后一条
       const opponentMsgs = (state.messages ?? [])
         .filter((m) => m.role === opponentRole);
       if (opponentMsgs.length > 0) {
@@ -172,7 +191,7 @@ function resolveDebateTemplate(
       .join("\n");
   });
 
-  // {{state.<node_id>.<field>}} — specific field from a node's findings
+  // {{state.<node_id>.<field>}} — 指定节点结果的特定字段
   result = result.replace(
     /\{\{state\.(\w+)\.(\w+)\}\}/g,
     (_match, nodeId: string, field: string) => {
@@ -184,7 +203,7 @@ function resolveDebateTemplate(
     },
   );
 
-  // {{state.<node_id>}} — whole finding from a node
+  // {{state.<node_id>}} — 指定节点的完整分析结果
   result = result.replace(
     /\{\{state\.(\w+)\}\}/g,
     (_match, nodeId: string) => {
@@ -200,11 +219,15 @@ function resolveDebateTemplate(
 }
 
 /**
- * Build a debate speaker node that:
- * 1. Constructs a round-specific prompt using the config's prompt_template
- * 2. Invokes the LLM (no-tools path)
- * 3. Stores the parsed output under findings[`round_{N}_{role}`]
- * 4. Appends a message to the messages array
+ * 构建辩论发言者节点，执行以下步骤：
+ * 1. 使用配置的 prompt_template 构造轮次特定的 prompt
+ * 2. 调用 LLM（无工具路径，辩论中不需要外部数据）
+ * 3. 将解析后的输出存入 findings[`round_{N}_{role}`]
+ * 4. 将发言追加到 messages 数组
+ *
+ * Delta 返回模式：
+ * - 只返回 { findings: {[key]}, messages: [...] }
+ * - 不展开 state.* — 否则每轮 messages 数组会翻倍，最终导致 RangeError
  */
 function buildDebateSpeakerNode(
   compiled: CompiledAgent,
@@ -220,10 +243,10 @@ function buildDebateSpeakerNode(
     const round = state.round ?? 0;
     const agentName = `${role}分析师`;
 
-    // Emit thinking event so the frontend shows the speaker is active
+    // 发出 onAgentThinking 事件，前端显示"正在思考..."
     await agentCallbacks?.onAgentThinking?.(debateNodeId, agentName);
 
-    // Build the prompt from the YAML prompt_template with variable interpolation
+    // 从 YAML prompt_template 构建 prompt，插值解析所有变量
     const prompt = resolveDebateTemplate(promptTemplate, state, role, opponentRole);
 
     log.verbose("LLM call", {
@@ -257,13 +280,13 @@ function buildDebateSpeakerNode(
       latencyMs,
     });
 
-    // Try to parse structured output
+    // 尝试解析结构化输出
     let parsed: unknown = text;
     if (compiled.outputParser) {
       try {
         parsed = await compiled.outputParser.parse(text);
       } catch {
-        parsed = { argument: text.slice(0, 200), raw: text };
+        parsed = { argument: text, raw: text };
       }
     } else {
       try {
@@ -273,7 +296,7 @@ function buildDebateSpeakerNode(
       }
     }
 
-    // Emit writing event so the frontend renders the argument text
+    // 发出 onAgentWriting 事件，前端渲染发言文本
     const conclusion =
       typeof parsed === "object" && parsed !== null
         ? ((parsed as Record<string, unknown>).argument as string)
@@ -289,15 +312,12 @@ function buildDebateSpeakerNode(
 
     const findingsKey = `round_${state.round}_${role}`;
 
+    // 只返回增量（delta）— channel reducer 自动合并/拼接。
+    // 警告：如果在此处展开 state.* 会导致指数级增长
+    // （每轮 messages 数组翻倍），最终触发 RangeError。
     return {
-      findings: {
-        ...state.findings,
-        [findingsKey]: parsed,
-      },
-      messages: [
-        ...state.messages,
-        { role, content: text },
-      ],
+      findings: { [findingsKey]: parsed },
+      messages: [{ role, content: text }],
     };
   };
 }

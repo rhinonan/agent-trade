@@ -9,43 +9,67 @@ import { createLLM, type AnalyzeOptions } from "../llm/create-llm.js";
 import { AStockClient } from "../data-sdk/client.js";
 import { createLogger } from "../logger.js";
 
+/**
+ * 工作流编排器 — agent-trade 的顶层执行入口。
+ *
+ * 完整流水线：
+ * 1. 加载 YAML（确保 agent 和 workflow 已加载到 RoleLoader 单例）
+ * 2. 编译工作流（WorkflowYaml → CompiledWorkflow，委托给 compiler.ts）
+ * 3. 构建 agent 名称映射（用于 WebSocket 事件推送时关联 nodeId → agentName）
+ * 4. 流式执行（LangGraph stream，每个节点完成后推送事件到前端）
+ * 5. 返回累计的最终状态（findings + messages + stop_reason）
+ */
+
 const log = createLogger("runner");
 
-// ——— Public interfaces ———
+// ——— 公开接口 ———
 
+/** 工作流运行结果 */
 export interface WorkflowRunResult {
+  /** 所有节点的分析结果，key 为 node_id */
   findings: Record<string, unknown>;
+  /** 辩论消息记录 */
   messages: { role: string; content: string }[];
+  /** 辩论终止原因 */
   stop_reason: string;
 }
 
+/** 工作流运行回调接口 */
 export interface WorkflowRunCallbacks {
+  /** 节点开始执行时触发 */
   onNodeStart?(nodeId: string, agentName: string): Promise<void>;
+  /** 节点执行完成时触发 */
   onNodeEnd?(nodeId: string, result: unknown): Promise<void>;
+  /** 流式输出块（已废弃） */
   onStreamChunk?(chunk: string): Promise<void>;
+  /** Agent 开始思考时触发 */
   onAgentThinking?(nodeId: string, agentName: string): Promise<void>;
+  /** Agent 调用工具时触发 */
   onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
+  /** 工具返回结果时触发 */
   onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
+  /** Agent 输出结论和推理时触发 */
   onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
 }
 
-// ——— YAML loading ———
+// ——— YAML 加载 ———
 
 /**
- * Compute the required LangGraph recursion limit from the workflow config.
+ * 根据 workflow 配置计算所需的 LangGraph 递归限制。
  *
- * Each debate round uses ~8 steps (speaker → route → speaker → route →
- * check_yield → route → increment_round → route). With max_rounds=50, we
- * need ~400+ steps. The LangGraph default of 25 is only enough for ~3 rounds.
+ * 每轮辩论约消耗 8 个 LangGraph 步骤：
+ *   speaker → route → speaker → route → check_yield → route → increment_round → route
+ *
+ * 默认 LangGraph 限制为 25，仅够约 3 轮辩论 — 远远不够。
+ * max_rounds=50 时约需 400+ 步。公式：100 + max_rounds * 10（包含缓冲和开销）。
  */
 function computeRecursionLimit(workflow: WorkflowYaml): number {
-  let limit = 50; // base for simple workflows without debate
+  let limit = 50; // 无辩论的简单 workflow 的基础值
 
   for (const node of workflow.nodes) {
     if (node.type === "debate") {
       const maxRounds = node.max_rounds ?? 10;
-      // 10 steps per round (8 actual + 2 buffer) + overhead for
-      // START routing, set_max_end, and parent graph nodes
+      // 每轮 10 步（8 实际 + 2 缓冲）+ START 路由、set_max_end 和父图节点的开销
       const needed = 100 + maxRounds * 10;
       limit = Math.max(limit, needed);
     }
@@ -55,16 +79,16 @@ function computeRecursionLimit(workflow: WorkflowYaml): number {
 }
 
 /**
- * Resolve the roles directory relative to the repo root.
- * Roles live at <repo-root>/roles/.
+ * 解析角色目录的绝对路径。
+ * 角色存储在 <repo-root>/roles/ 下。
  */
 function resolveRolesDir(): string {
   return path.resolve(process.cwd(), "roles");
 }
 
 /**
- * Load a workflow YAML from roles/workflows/<name>.yaml.
- * Validates against WorkflowYamlSchema before returning.
+ * 从 roles/workflows/<name>.yaml 加载 workflow YAML。
+ * 返回前会通过 WorkflowYamlSchema 进行 Zod 校验。
  */
 export async function loadWorkflowYaml(name: string): Promise<WorkflowYaml> {
   const filePath = path.join(resolveRolesDir(), "workflows", `${name}.yaml`);
@@ -78,15 +102,20 @@ export async function loadWorkflowYaml(name: string): Promise<WorkflowYaml> {
   return WorkflowYamlSchema.parse(parsed);
 }
 
+/** 内建 agent 是否已加载（幂等保护） */
 let _builtinAgentsLoaded = false;
+/** 内建 workflow 是否已加载（幂等保护） */
 let _builtinWorkflowsLoaded = false;
 
 /**
- * Build a nodeId → agentName lookup map from the workflow YAML.
+ * 从 workflow YAML 构建 nodeId → agentName 查找映射。
  *
- * Standard nodes: workflow node ID → node.agent
- * Debate nodes: internal subgraph node IDs (role-based, e.g. 多方_speak, 空方_speak) →
- *   corresponding participant agent; check_yield / increment_round / set_max_end → debate node ID
+ * 用途：WebSocket 事件推送时，需要知道每个节点对应的 agent 名称。
+ *
+ * 映射规则：
+ * - 标准节点：node.id → node.agent
+ * - 辩论节点内部 ID（角色命名，如 多方_speak、空方_speak）→ 对应参与者的 agent
+ * - 辩论工具节点（check_yield、increment_round、set_max_end）→ 辩论节点 ID
  */
 function buildAgentNameMap(
   workflow: WorkflowYaml,
@@ -96,7 +125,7 @@ function buildAgentNameMap(
 
   for (const node of workflow.nodes) {
     if (node.type === "debate") {
-      // Debate subgraph internal nodes — now role-based IDs
+      // 辩论子图的内部节点 — 使用角色命名的 ID
       const participants = node.participants ?? [];
       if (participants.length >= 1) {
         map.set(`${participants[0].role}_speak`, participants[0].agent);
@@ -104,7 +133,7 @@ function buildAgentNameMap(
       if (participants.length >= 2) {
         map.set(`${participants[1].role}_speak`, participants[1].agent);
       }
-      // check_yield, increment_round, and set_max_end belong to the debate node
+      // check_yield、increment_round、set_max_end 都属于辩论节点
       map.set("check_yield", node.id);
       map.set("increment_round", node.id);
       map.set("set_max_end", node.id);
@@ -117,9 +146,8 @@ function buildAgentNameMap(
 }
 
 /**
- * Ensure the singleton RoleLoader has built-in agents and workflows loaded.
- * Idempotent — skips scanning if already loaded in this process.
- * Also scans workflows from roles/workflows/.
+ * 确保 RoleLoader 单例已加载内建 agent 和 workflow。
+ * 幂等操作 — 同一进程中已加载则跳过扫描。
  */
 export async function ensureAgentsLoaded(): Promise<void> {
   const loader = getRoleLoader();
@@ -137,15 +165,16 @@ export async function ensureAgentsLoaded(): Promise<void> {
   }
 }
 
-// ——— Core runner ———
+// ——— 核心执行器 ———
 
 /**
- * Run a WorkflowYaml against a target string.
+ * 对目标代码执行一个 WorkflowYaml。
  *
- * 1. Ensures agents are loaded into the RoleLoader singleton
- * 2. Compiles the workflow into a LangGraph StateGraph
- * 3. Streams through nodes, calling lifecycle callbacks
- * 4. Returns the final accumulated state as WorkflowRunResult
+ * 执行流水线：
+ * 1. 确保 agent 已加载到 RoleLoader 单例
+ * 2. 编译 workflow 为 LangGraph StateGraph
+ * 3. 流式执行各节点，每次节点完成后触发生命周期回调
+ * 4. 返回累计的最终状态
  */
 export async function runWorkflow(
   workflow: WorkflowYaml,
@@ -167,9 +196,7 @@ export async function runWorkflow(
     onAgentWriting: callbacks.onAgentWriting,
   });
 
-  // Build a nodeId → agentName lookup from the workflow YAML.
-  // Standard nodes: node.id → node.agent
-  // Debate nodes: internal subgraph node IDs → debate participant agents
+  // 构建 nodeId → agentName 查找映射（用于 WebSocket 事件推送）
   const agentNameMap = buildAgentNameMap(workflow, loader);
 
   const initialState = {
@@ -185,9 +212,8 @@ export async function runWorkflow(
 
   let finalState = initialState;
 
-  // Compute recursion limit from debate node configs.
-  // Each debate round uses ~8 LangGraph steps (speaker + route + check_yield + increment_round).
-  // Default LangGraph limit is 25, which only allows ~3 rounds — far too low.
+  // 根据辩论节点配置计算递归限制。
+  // 默认 LangGraph 限制为 25，仅够约 3 轮 — 通过 computeRecursionLimit 动态提升。
   const recursionLimit = computeRecursionLimit(workflow);
   log.debug("Computed recursion limit", { workflow: workflow.name, recursionLimit });
 
@@ -201,7 +227,7 @@ export async function runWorkflow(
       const agentName = agentNameMap.get(nodeId) ?? nodeId;
       log.debug("Node start", { workflow: workflow.name, nodeId, agentName });
       await callbacks.onNodeStart?.(nodeId, agentName);
-      // Merge the partial state update into the accumulated state
+      // 将部分状态更新合并到累计状态中
       finalState = { ...finalState, ...(update as typeof initialState) };
       await callbacks.onNodeEnd?.(nodeId, update);
       log.debug("Node end", { workflow: workflow.name, nodeId, agentName });

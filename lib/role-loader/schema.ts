@@ -1,7 +1,20 @@
 // lib/role-loader/schema.ts
+
+/**
+ * Agent / Workflow YAML 的 Zod 校验 Schema。
+ *
+ * 此文件定义了所有 YAML 配置文件的结构校验规则：
+ * - AgentYamlSchema — 校验 roles/agents/*.yaml（agent 角色定义）
+ * - WorkflowYamlSchema — 校验 roles/workflows/*.yaml（工作流定义）
+ *
+ * WorkflowYamlSchema 包含两个 refine 校验：
+ * 1. 节点 ID 必须唯一
+ * 2. depends_on 中引用的节点必须存在
+ */
+
 import { z } from "zod";
 
-// ——— Field Schema (output_schema values) ———
+// ——— 字段 Schema（output_schema 的值类型）———
 const SUPPORTED_TYPES = ["string", "number", "boolean", "array"] as const;
 
 export const FieldSchema = z.object({
@@ -15,7 +28,8 @@ export const FieldSchema = z.object({
 
 export type FieldDef = z.infer<typeof FieldSchema>;
 
-// ——— Agent YAML ———
+// ——— Agent YAML 校验 ———
+// 校验 roles/agents/*.yaml 的结构
 export const AgentYamlSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -32,7 +46,8 @@ export const AgentYamlSchema = z.object({
 
 export type AgentYaml = z.infer<typeof AgentYamlSchema>;
 
-// ——— Workflow Node ———
+// ——— Workflow 节点定义 ———
+/** 节点基础 Schema — 所有节点共享的字段 */
 const BaseNodeSchema = z.object({
   id: z.string().min(1),
   agent: z.string().min(1),
@@ -40,6 +55,7 @@ const BaseNodeSchema = z.object({
   depends_on: z.array(z.string()).optional().default([]),
 });
 
+/** 辩论节点 Schema — 包含参与者、最大轮次、终止条件等辩论专用字段 */
 const DebateNodeSchema = BaseNodeSchema.extend({
   type: z.literal("debate"),
   agent: z.string().optional(),
@@ -57,16 +73,20 @@ const DebateNodeSchema = BaseNodeSchema.extend({
   prompt_template: z.string().min(1),
 });
 
+/** 标准节点 Schema — 默认节点类型 */
 const StandardNodeSchema = BaseNodeSchema.extend({
   type: z.literal("standard").optional().default("standard"),
 });
 
+/** 通过 type 字段区分标准节点和辩论节点的判别联合 */
 const WorkflowNodeSchema = z.discriminatedUnion("type", [
   StandardNodeSchema,
   DebateNodeSchema,
 ]);
 
-// ——— Workflow YAML ———
+// ——— Workflow YAML 校验 ———
+// 校验 roles/workflows/*.yaml 的结构
+// 包含两个 refine 校验：节点 ID 唯一性 + depends_on 引用有效性
 export const WorkflowYamlSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),

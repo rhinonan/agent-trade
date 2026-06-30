@@ -1,5 +1,6 @@
 // lib/data-sdk/indicators.ts
-// Local technical indicator calculation. Zero dependencies.
+// 本地技术指标计算 — MACD / RSI / MA / 布林带。
+// 零外部依赖，基于收盘价数组的纯函数计算。
 
 export interface MACDItem {
   index: number;

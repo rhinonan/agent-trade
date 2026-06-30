@@ -1,4 +1,5 @@
-// lib/data-sdk/index.ts — Barrel exports
+// lib/data-sdk/index.ts — A 股数据 SDK 统一导出（Barrel exports）
+// 聚合所有数据提供商、技术指标、工具函数和类型定义
 
 export { AStockClient } from "./client.js";
 export { TencentProvider } from "./providers/tencent.js";

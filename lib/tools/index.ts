@@ -4,14 +4,30 @@ import { webSearchTool } from "./web-search.js";
 import { webFetchTool } from "./web-fetch/index.js";
 import type { ToolDefinition } from "./types.js";
 
+/**
+ * 工具注册中心 — agent-trade 所有工具的定义和查找表。
+ *
+ * 工具分为三类：
+ * 1. 独立文件工具 — kline.ts / indicator.ts / web-search.ts / web-fetch/
+ *    这些是相对通用的计算型工具（K线、技术指标、搜索）
+ * 2. 内联工具 — 本文件内定义的、直接依赖 AStockClient API 的数据查询工具
+ *    涵盖资金流、新闻、公告、财务、龙虎榜、两融、北向资金等
+ * 3. toolsByName Map — 中心注册表，YAML agent 通过字符串名称查找工具
+ *
+ * 新增工具只需：
+ * 1. 在本文件定义 ToolDefinition 常量
+ * 2. 在 toolsByName Map 中注册
+ */
+
 export { klineTool } from "./kline.js";
 export { macdTool, rsiTool, maTool } from "./indicator.js";
 export { webSearchTool } from "./web-search.js";
 export { webFetchTool } from "./web-fetch/index.js";
 export type { ToolDefinition, ToolContext, PropertySchema } from "./types.js";
 
-// ─── Real tool implementations using AStockClient ───
+// ─── 数据查询工具（依赖 AStockClient 各层 API）───
 
+/** 资金流向 — 主力/超大单/大单/中单/小单净流入流出（分钟级），来源：东方财富 fundFlowMinute */
 const fundFlowTool: ToolDefinition = {
   name: "get-fund-flow",
   description: "获取个股资金流向数据（主力/超大单/大单/中单/小单净流入流出，分钟级）",
@@ -24,6 +40,7 @@ const fundFlowTool: ToolDefinition = {
   },
 };
 
+/** 新闻资讯 — 个股相关新闻（含情感标签），来源：stockNews */
 const newsTool: ToolDefinition = {
   name: "get-news",
   description: "获取个股相关新闻资讯（含情感标签）",
@@ -35,6 +52,7 @@ const newsTool: ToolDefinition = {
   },
 };
 
+/** 公司公告 — 上市公司公告检索（支持关键词），来源：announcements.search */
 const announcementTool: ToolDefinition = {
   name: "get-announcement",
   description: "获取上市公司公告（支持关键词检索）",
@@ -51,6 +69,7 @@ const announcementTool: ToolDefinition = {
   },
 };
 
+/** 财务数据 — 营收/利润/资产负债/现金流，来源：incomeStatement + balanceSheet */
 const financialDataTool: ToolDefinition = {
   name: "get-financial-data",
   description: "获取财务数据（营收/利润/资产负债/现金流等），默认返回最新一季利润表",
@@ -71,6 +90,7 @@ const financialDataTool: ToolDefinition = {
   },
 };
 
+/** 大宗交易 — 折溢价/席位信息，默认最近 60 天，来源：capital.blockTrades */
 const blockTradeTool: ToolDefinition = {
   name: "get-block-trade",
   description: "获取大宗交易数据（折溢价/席位信息），默认最近60天",
@@ -82,6 +102,7 @@ const blockTradeTool: ToolDefinition = {
   },
 };
 
+/** 实时行情 — 最新价/涨跌幅/PE/PB/市值/换手率，来源：market.quote */
 const quoteTool: ToolDefinition = {
   name: "get-quote",
   description: "获取实时行情报价（最新价/涨跌幅/PE/PB/市值/换手率等）",
@@ -95,8 +116,9 @@ const quoteTool: ToolDefinition = {
   },
 };
 
-// ─── Missing tools referenced by agent YAMLs ───
+// ─── 宏观 / 情绪 / 量价 / 综合指标（agent YAML 引用的组合工具）───
 
+/** 宏观经济 — GDP/CPI/PMI/货币政策等宏观新闻动态，来源：news.globalNews（过滤宏观类别） */
 const macroIndicatorTool: ToolDefinition = {
   name: "macro-indicator",
   description: "获取宏观经济相关新闻与政策动态（GDP/CPI/PMI/货币政策/财政政策等宏观信息）",
@@ -115,6 +137,7 @@ const macroIndicatorTool: ToolDefinition = {
   },
 };
 
+/** 市场情绪 — 热门题材股 + 北向资金动向，来源：hotStocks + northBound */
 const socialSentimentTool: ToolDefinition = {
   name: "social-sentiment",
   description: "获取市场情绪数据（热门题材股/北向资金动向/龙虎榜，反映市场情绪热度）",
@@ -132,6 +155,7 @@ const socialSentimentTool: ToolDefinition = {
   },
 };
 
+/** 量价关系 — K 线量价 + 分钟级资金流向，计算均量和量比，来源：kline + fundFlowMinute */
 const volumeTool: ToolDefinition = {
   name: "get-volume",
   description: "获取成交量与资金流向数据（K线量价+分钟级资金流向，用于量价关系分析）",
@@ -161,6 +185,7 @@ const volumeTool: ToolDefinition = {
   },
 };
 
+/** 综合技术指标 — MACD/RSI/MA/布林带，基于最新 60 日 K 线，来源：indicators */
 const indicatorTool: ToolDefinition = {
   name: "calc-indicators",
   description: "计算技术指标（MACD/RSI/MA/布林带），基于最新60日K线收盘价",
@@ -202,7 +227,8 @@ const indicatorTool: ToolDefinition = {
   },
 };
 
-// ─── New tools ───
+// ─── 龙虎榜 / 两融 / 板块 / 股东 / 强势股 / 北向资金 ───
+// 市场和资金面辅助工具
 
 const dragonTigerTool: ToolDefinition = {
   name: "get-dragon-tiger-board",
@@ -272,7 +298,14 @@ const northBoundTool: ToolDefinition = {
   },
 };
 
-/** Lookup map: YAML tool name → ToolDefinition. */
+/**
+ * 工具注册表 — YAML agent 通过字符串名称查找工具实现。
+ *
+ * YAML agent 的 tools 字段列出工具名称（如 "kline", "macd", "fund_flow"），
+ * RoleLoader 通过此 Map 将名称解析为 ToolDefinition，再包装为 LangChain StructuredTool。
+ *
+ * 新增工具时，在此 Map 中添加条目即可生效。
+ */
 export const toolsByName = new Map<string, ToolDefinition>([
   ["kline", klineTool],
   ["macd", macdTool],

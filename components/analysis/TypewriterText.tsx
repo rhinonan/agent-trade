@@ -5,6 +5,8 @@ export interface TypewriterTextProps {
   text: string;
   /** Characters per second. Default 100. */
   speed?: number;
+  /** Optional ref for burst mode. When non-null, overrides `speed` without resetting the animation. */
+  burstSpeedRef?: React.MutableRefObject<number | null>;
   /** Called when animation finishes. */
   onDone?: () => void;
   /** Additional CSS class for the text element. */
@@ -14,8 +16,15 @@ export interface TypewriterTextProps {
 /**
  * Hook: drives character-by-character typewriter animation.
  * Uses setTimeout + batch updates to avoid excessive React re-renders.
+ *
+ * `burstSpeedRef` is read on each tick but NOT included in the useEffect
+ * dependency array — changing it mid-animation does NOT reset the animation.
  */
-function useTypewriter(text: string, speed: number) {
+function useTypewriter(
+  text: string,
+  speed: number,
+  burstSpeedRef?: React.MutableRefObject<number | null>,
+) {
   const [displayed, setDisplayed] = useState("");
   const [isDone, setIsDone] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -42,7 +51,13 @@ function useTypewriter(text: string, speed: number) {
     }
 
     const BATCH = 10;
-    const baseDelay = 1000 / speed;
+
+    // Read effective speed fresh on each tick so burst changes apply
+    // mid-animation without triggering the useEffect cleanup.
+    const getBaseDelay = () => {
+      const effectiveSpeed = burstSpeedRef?.current ?? speed;
+      return 1000 / effectiveSpeed;
+    };
 
     const tick = () => {
       const i = idxRef.current;
@@ -51,6 +66,7 @@ function useTypewriter(text: string, speed: number) {
         return;
       }
 
+      const baseDelay = getBaseDelay();
       const next = Math.min(i + BATCH, text.length);
       setDisplayed(text.slice(0, next));
       idxRef.current = next;
@@ -80,6 +96,9 @@ function useTypewriter(text: string, speed: number) {
       }
     };
   }, [text, speed]);
+  // NOTE: burstSpeedRef is intentionally NOT in the dependency array.
+  // Changing ref.current does NOT reset the animation — it picks up the
+  // new speed on the next tick boundary seamlessly.
 
   return { displayed, isDone, skip };
 }
@@ -92,10 +111,11 @@ function useTypewriter(text: string, speed: number) {
 export function TypewriterText({
   text,
   speed = 100,
+  burstSpeedRef,
   onDone,
   className = "",
 }: TypewriterTextProps) {
-  const { displayed, isDone, skip } = useTypewriter(text, speed);
+  const { displayed, isDone, skip } = useTypewriter(text, speed, burstSpeedRef);
   const prevDone = useRef(false);
 
   useEffect(() => {

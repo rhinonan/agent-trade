@@ -1,9 +1,22 @@
 "use client";
+
+/**
+ * 分析实时 Socket Hook — 管理 Socket.IO 连接，接收分析流程中的实时事件。
+ *
+ * 事件流状态机：
+ *   空闲 → ANALYSIS_START → NODE_START → AGENT_THINKING → AGENT_TOOL_CALL/TOOL_RESULT
+ *   → AGENT_WRITING → NODE_END → DEBATE_ROUND → DEBATE_YIELD → ANALYSIS_COMPLETE/ERROR
+ *
+ * 注意事项：
+ * - AGENT_WRITING 可能先于 AGENT_THINKING 到达（竞态），需用 writingCache 处理
+ * - 辩论节点通过 round、debateRounds 追踪辩论进度
+ */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { WS_EVENTS } from "@/lib/socket/events.js";
 
-// ——— Data types ———
+// ——— 数据类型 ———
 
 interface Finding {
   step: string;
@@ -22,7 +35,7 @@ interface StepState {
   status: "pending" | "running" | "complete";
 }
 
-/** LangGraph node-level progress (replaces step-level for new events). */
+/** LangGraph 节点级进度（替代旧版步骤级事件） */
 export interface NodeState {
   nodeId: string;
   agentName: string;
@@ -30,14 +43,14 @@ export interface NodeState {
   status: "pending" | "running" | "complete" | "error";
 }
 
-/** Record of a single debate round tick. */
+/** 单个辩论轮次事件记录 */
 export interface DebateRoundEvent {
   nodeId: string;
   round: number;
   participantLabel: string;
 }
 
-/** Record of a debate-yield event. */
+/** 辩论认输事件记录 */
 export interface DebateYieldEvent {
   nodeId: string;
   fromAgent: string;
@@ -74,6 +87,8 @@ export interface AgentStream {
   reasoning: string;
   finding: Finding | null;
   startedAt: number;
+  /** Timestamp of the most recent AGENT_WRITING event (for burst detection). */
+  lastWritingTs?: number;
 }
 
 // ——— Hook ———
@@ -416,6 +431,7 @@ export function useAnalysisSocket(sessionId: string) {
           reasoning: payload.reasoning,
           finding: existing?.finding ?? null,
           startedAt: existing?.startedAt ?? Date.now(),
+          lastWritingTs: Date.now(),
         });
         return next;
       });

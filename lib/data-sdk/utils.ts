@@ -1,5 +1,5 @@
 // lib/data-sdk/utils.ts
-// Shared utilities for the A-Stock Data SDK.
+// A 股数据 SDK 共享工具函数 — 代码标准化、GBK 解码、速率限制、超时 fetch
 
 // ─── Ticker normalization ───
 

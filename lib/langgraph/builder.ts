@@ -11,12 +11,20 @@ import type { AStockClient } from "../data-sdk/client.js";
 type LLMFactory = () => Runnable;
 
 /**
- * Compile a WorkflowYaml into an executable LangGraph StateGraph.
+ * 将 WorkflowYaml 配置编译为可执行的 LangGraph StateGraph。
  *
- * Edge rules:
- * - Nodes without depends_on → run in parallel from START
- * - Nodes with depends_on → wait for all listed nodes, then run
- * - Nodes not depended on by anyone → connect to END
+ * 边的路由规则：
+ * - 没有 depends_on 的节点 → 从 START 并行启动（可同时执行多个独立分析）
+ * - 有 depends_on 的节点 → 等待所有依赖节点完成后才执行
+ * - 不被任何其他节点依赖的节点（叶子节点） → 连接到 END
+ *
+ * 辩论节点处理：
+ * - type === "debate" 的节点委托给 buildDebateSubgraph() 构建子图
+ * - 子图在添加前先调用 .compile() 编译
+ *
+ * Prompt 传递说明：
+ * - task prompt 作为 {input} 值传给 LangChain agent 模板，而非 LangChain 模板本身
+ * - resolveStateVariables() 在运行时解析 {{target}} 等状态变量
  */
 export function buildStateGraph(
   workflow: WorkflowYaml,
@@ -27,7 +35,7 @@ export function buildStateGraph(
 ) {
   const graph = new StateGraph(WorkflowState);
 
-  // Track which nodes are depended on (sinks → END)
+  // 记录哪些节点被其他节点依赖（用于确定哪些节点需要连接到 END）
   const isDependedOn = new Set<string>();
 
   for (const node of workflow.nodes) {
@@ -36,7 +44,7 @@ export function buildStateGraph(
     }
 
     if (node.type === "debate") {
-      // Debate is a subgraph
+      // 辩论类型 → 构建子图，编译后作为单个节点注册
       const debateSubgraph = buildDebateSubgraph(node, loader, llmFactory, agentCallbacks);
       graph.addNode(node.id, debateSubgraph.compile() as any);
     } else {
@@ -46,15 +54,14 @@ export function buildStateGraph(
           `Agent "${node.agent}" not found for node "${node.id}" in workflow "${workflow.name}"`
         );
       }
-      // Task prompt is passed as the {input} value to the LangChain agent template,
-      // NOT as a LangChain template itself.  resolveStateVariables() handles
-      // {{target}} and other runtime state variables at invocation time.
+      // task prompt 作为 {input} 值传给 LangChain agent 模板，而非 LangChain 模板本身。
+      // resolveStateVariables() 在运行时处理 {{target}} 和其他状态变量。
       const prompt = node.prompt ?? `分析 {{target}}`;
       graph.addNode(node.id, buildAgentNode(agent, prompt, llmFactory, dataClient, node.id, agentCallbacks));
     }
   }
 
-  // Add edges
+  // 添加边：无依赖的节点从 START 并行启动，有依赖的等待依赖完成
   for (const node of workflow.nodes) {
     if ((node.depends_on ?? []).length === 0) {
       graph.addEdge(START as any, node.id as any);
@@ -65,7 +72,7 @@ export function buildStateGraph(
     }
   }
 
-  // Nodes not depended on → END
+  // 叶子节点（不被任何节点依赖）→ END
   for (const node of workflow.nodes) {
     if (!isDependedOn.has(node.id)) {
       graph.addEdge(node.id as any, END as any);

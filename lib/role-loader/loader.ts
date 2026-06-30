@@ -9,8 +9,26 @@ import { ZodError } from "zod";
 import { toolsByName } from "@/lib/tools/index.js";
 import type { ToolDefinition } from "@/lib/tools/index.js";
 
-// ——— Types ———
+/**
+ * 角色加载器 — YAML 编译器，将 YAML 配置编译为可执行的 CompiledAgent。
+ *
+ * 编译流水线：
+ *   YAML 文本 → js-yaml 解析 → Zod 校验 → compileAgent()
+ *                                              │
+ *                                              ├─ interpolateTemplate() — {{var}} → {var}
+ *                                              ├─ ChatPromptTemplate.fromMessages()
+ *                                              ├─ buildOutputParser() — 递归构建 Zod schema
+ *                                              └─ toolsByName.get(name) — 解析工具引用
+ *
+ * 支持三种加载来源：
+ * 1. 文件系统扫描（scanAgents / scanWorkflows）— 加载内建角色
+ * 2. 直接 YAML 字符串（loadAgentYaml / loadWorkflowYaml）— 用于用户上传
+ * 3. 数据库加载（loadFromDB）— 加载用户自定义角色，含跨用户隔离机制
+ */
 
+// ——— 类型定义 ———
+
+/** 编译后的 Agent — 包含已解析的 prompt 模板、输出解析器、工具列表等运行时所需全部信息 */
 export interface CompiledAgent {
   id: string;
   name: string;
@@ -21,9 +39,9 @@ export interface CompiledAgent {
   maxToolSteps: number;
 }
 
-// ——— Variable interpolation ———
+// ——— 模板变量插值 ———
 
-/** Convert Jinja2-style {{var}} to LangChain {var} */
+/** 将 Jinja2 风格的 {{var}} 转换为 LangChain 风格的 {var} */
 export function interpolateTemplate(template: string, vars: Record<string, string> = {}): string {
   let result = template.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, "{$1}");
   // Also interpolate immediate values from vars
@@ -33,8 +51,9 @@ export function interpolateTemplate(template: string, vars: Record<string, strin
   return result;
 }
 
-// ——— Zod schema from YAML field def ———
+// ——— YAML 字段定义 → Zod schema ———
 
+/** 将 YAML output_schema 中的单个字段定义转为 Zod schema。支持 string/number/boolean/array 类型及 min/max/enum 约束。 */
 function fieldToZod(def: { type: string; description?: string; min?: number; max?: number; enum?: string[]; items?: { type: string } }): z.ZodTypeAny {
   let base: z.ZodTypeAny;
   switch (def.type) {
@@ -75,8 +94,15 @@ function buildOutputParser(schema: Record<string, unknown> | undefined): Structu
   return StructuredOutputParser.fromZodSchema(z.object(shape));
 }
 
-// ——— RoleLoader ———
+// ——— RoleLoader 类 ———
+// 核心编译器，管理所有已加载的 agent 和 workflow
 
+/**
+ * 角色加载器 — 管理 agent 和 workflow 的编译、缓存和查询。
+ *
+ * 使用模块级单例模式（getRoleLoader / resetRoleLoader），
+ * 确保整个应用中只有一个 RoleLoader 实例。
+ */
 export class RoleLoader {
   private agents = new Map<string, CompiledAgent>();
   private workflows = new Map<string, WorkflowYaml>();
@@ -85,7 +111,7 @@ export class RoleLoader {
   private dbLoadedAgentIds = new Set<string>();
   private dbLoadedWorkflowIds = new Set<string>();
 
-  // ========== Agent loading ==========
+  // ========== Agent 加载 ==========
 
   async scanAgents(dir: string): Promise<void> {
     if (!fs.existsSync(dir)) {
@@ -158,7 +184,7 @@ export class RoleLoader {
     };
   }
 
-  // ========== Workflow loading ==========
+  // ========== Workflow 加载 ==========
 
   async scanWorkflows(dir: string): Promise<void> {
     if (!fs.existsSync(dir)) {
@@ -197,11 +223,12 @@ export class RoleLoader {
     return validated;
   }
 
-  // ========== DB loading ==========
+  // ========== 数据库加载（用户自定义角色）==========
 
   /**
-   * Remove all roles that were previously loaded from DB.
-   * Must be called before loading a different user's roles to prevent cross-user data leaks.
+   * 清除所有从数据库加载的角色。
+   * 必须在切换用户前调用，防止跨用户数据泄漏。
+   * 同时清除 agent 和 workflow 的 DB 加载记录。
    */
   clearDBRoles(): void {
     for (const id of this.dbLoadedAgentIds) {
@@ -243,7 +270,7 @@ export class RoleLoader {
     }
   }
 
-  // ========== Accessors ==========
+  // ========== 查询接口 ==========
 
   getAgent(id: string): CompiledAgent | undefined {
     return this.agents.get(id);

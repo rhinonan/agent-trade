@@ -1,6 +1,6 @@
 // lib/data-sdk/client.ts
-// AStockClient — composes all providers, orchestrates fallback chains.
-// Public API organized by 7 data layers (matching the a-stock-data SKILL.md).
+// AStockClient — 聚合所有数据提供商（腾讯/东方财富/新浪/巨潮/同花顺），
+// 编排 fallback 链。公开 API 按 7 个数据层组织。
 
 import type { DataResult, KlineBar, KlineOptions, Quote, IndexQuote, ETFQuote,
   ResearchReport, IndustryReport, ResearchPDF, HotStock, NorthBoundFlow,
@@ -24,7 +24,8 @@ export class AStockClient {
   private cninfo: CninfoProvider;
   private ths: THSProvider;
 
-  // ─── Public 7-layer API ───
+  // ─── 公开 7 层 API ───
+  // 行情 / 研报 / 资金信号 / 资金面 / 新闻 / 基本面 / 公告
 
   readonly market: MarketLayer;
   readonly research: ResearchLayer;

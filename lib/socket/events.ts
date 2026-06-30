@@ -1,25 +1,35 @@
+/**
+ * WebSocket 事件目录 — 所有事件名常量和 TypeScript 载荷接口。
+ *
+ * 事件分类：
+ * - 分析生命周期：ANALYSIS_START / COMPLETE / ERROR
+ * - 旧版步骤事件：STEP_START / COMPLETE / ERROR（向后兼容）
+ * - LangGraph 节点事件：NODE_START / END / ERROR + DEBATE_ROUND / YIELD
+ * - Agent 粒度事件：AGENT_THINKING / TOOL_CALL / TOOL_RESULT / WRITING
+ * - 客户端事件：SUBSCRIBE / UNSUBSCRIBE
+ */
 export const WS_EVENTS = {
-  // Server emits — analysis lifecycle
+  // 服务端发出 — 分析生命周期
   ANALYSIS_START: "analysis:start",
   ANALYSIS_COMPLETE: "analysis:complete",
   ANALYSIS_ERROR: "analysis:error",
   SESSION_STATUS: "session:status",
-  // Server emits — legacy step-level events (kept for backward compat)
+  // 服务端发出 — 旧版步骤事件（向后兼容）
   STEP_START: "step:start",
   STEP_COMPLETE: "step:complete",
   STEP_ERROR: "step:error",
-  // Server emits — LangGraph node-level events
+  // 服务端发出 — LangGraph 节点级事件
   NODE_START: "node:start",
   NODE_END: "node:end",
   NODE_ERROR: "node:error",
   DEBATE_ROUND: "debate:round",
   DEBATE_YIELD: "debate:yield",
-  // Server emits — agent-level granular events (tool calls, thinking, writing)
+  // 服务端发出 — Agent 粒度事件（工具调用、思考、输出）
   AGENT_THINKING: "agent:thinking",
   AGENT_TOOL_CALL: "agent:tool_call",
   AGENT_TOOL_RESULT: "agent:tool_result",
   AGENT_WRITING: "agent:writing",
-  // Client emits
+  // 客户端发出
   SUBSCRIBE: "subscribe",
   UNSUBSCRIBE: "unsubscribe",
 } as const;

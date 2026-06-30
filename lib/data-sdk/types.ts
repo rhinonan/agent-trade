@@ -1,7 +1,8 @@
 // lib/data-sdk/types.ts
-// All business types for the A-Stock Data SDK.
+// A 股数据 SDK 的所有业务类型定义。
+// 涵盖 7 个数据层：行情、研报、资金流、资金面、新闻、基本面、公告
 
-// ─── Universal result wrapper ───
+// ─── 通用结果包装器 ───
 
 export interface DataResult<T> {
   data: T | null;

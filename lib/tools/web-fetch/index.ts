@@ -4,6 +4,16 @@ import { DuckDuckGoSearchEngine } from "./duckduckgo.js";
 import type { SearchItem } from "./duckduckgo.js";
 import { BingSearchEngine } from "./bing.js";
 
+/**
+ * Web 抓取工具 — 免费联网搜索 + 可选网页全文抓取。
+ *
+ * 工具链：
+ * 1. 搜索 — DuckDuckGo（优先）→ Bing（回退），均无需 API Key
+ * 2. 可选内容抓取 — 对搜索结果 URL 逐一抓取网页全文（通过 cheerio 提取纯文本）
+ *
+ * 为什么需要双引擎回退：DuckDuckGo 在中国大陆可能被屏蔽，此时自动回退到 Bing。
+ */
+
 const FETCH_CONTENT_TIMEOUT_MS = 15_000;
 
 export const webFetchTool: ToolDefinition = {
@@ -40,16 +50,16 @@ export const webFetchTool: ToolDefinition = {
 
     const fetchContent = params.fetch_content === true;
 
-    // Check if already cancelled
+    // 检查是否已取消
     if (ctx.signal.aborted) {
       return JSON.stringify({ error: "Web fetch cancelled" });
     }
 
-    // Compose user signal with 30s overall timeout
+    // 组合用户取消信号和 30 秒总超时
     const overallTimeout = AbortSignal.timeout(30_000);
     const composedSignal = AbortSignal.any([ctx.signal, overallTimeout]);
 
-    // 1. Search with DuckDuckGo, fallback to Bing
+    // 1. DuckDuckGo 搜索，失败回退到 Bing
     let results: SearchItem[] = [];
     let source = "duckduckgo";
 
@@ -62,7 +72,7 @@ export const webFetchTool: ToolDefinition = {
       );
     }
 
-    // Check timeout / cancellation after DuckDuckGo
+    // DuckDuckGo 后检查超时/取消
     if (overallTimeout.aborted) {
       return JSON.stringify({ error: "Web fetch timed out after 30s" });
     }
@@ -82,7 +92,7 @@ export const webFetchTool: ToolDefinition = {
       }
     }
 
-    // Check timeout / cancellation after Bing
+    // Bing 后检查超时/取消
     if (overallTimeout.aborted) {
       return JSON.stringify({ error: "Web fetch timed out after 30s" });
     }

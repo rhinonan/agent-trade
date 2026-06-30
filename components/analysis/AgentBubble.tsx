@@ -1,5 +1,5 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type { AgentStream } from "@/hooks/useAnalysisSocket";
 import { ThinkingIndicator } from "./ThinkingIndicator";
 import { TypewriterText } from "./TypewriterText";
@@ -8,14 +8,24 @@ import { ToolCallCard } from "./ToolCallCard";
 
 interface AgentBubbleProps {
   stream: AgentStream;
+  /** True if this bubble's agent is the most recent to emit AGENT_WRITING. */
+  isLatestWriting?: boolean;
   /** Called when typewriter finishes and agent is fully done. */
   onRevealDone?: () => void;
 }
 
-export function AgentBubble({ stream, onRevealDone }: AgentBubbleProps) {
+export function AgentBubble({ stream, isLatestWriting, onRevealDone }: AgentBubbleProps) {
   const [expanded, setExpanded] = useState(true); // open by default during live analysis
   const [conclusionTypingDone, setConclusionTypingDone] = useState(false);
   const [reasoningTypingDone, setReasoningTypingDone] = useState(false);
+
+  // Burst mode: when this card is no longer the latest writing one,
+  // accelerate the typewriter to finish within ~1s.  The burstSpeedRef
+  // is read on each tick by TypewriterText without resetting animation.
+  const burstSpeedRef = useRef<number | null>(null);
+  useEffect(() => {
+    burstSpeedRef.current = isLatestWriting ? null : 2000;
+  }, [isLatestWriting]);
 
   const isFullyDone =
     conclusionTypingDone && (reasoningTypingDone || !stream.reasoning);
@@ -49,7 +59,10 @@ export function AgentBubble({ stream, onRevealDone }: AgentBubbleProps) {
         </span>
         <button
           type="button"
-          onClick={() => setExpanded(!expanded)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpanded(!expanded);
+          }}
           className="text-xs text-zinc-600 hover:text-zinc-400 cursor-pointer transition-colors"
         >
           {expanded ? "收起 ▲" : "展开 ▼"}
@@ -105,6 +118,7 @@ export function AgentBubble({ stream, onRevealDone }: AgentBubbleProps) {
                   <TypewriterText
                     text={stream.conclusion}
                     speed={100}
+                    burstSpeedRef={burstSpeedRef}
                     onDone={() => setConclusionTypingDone(true)}
                     className="text-zinc-300 text-sm leading-relaxed"
                   />
@@ -124,6 +138,7 @@ export function AgentBubble({ stream, onRevealDone }: AgentBubbleProps) {
                   <TypewriterText
                     text={stream.reasoning}
                     speed={100}
+                    burstSpeedRef={burstSpeedRef}
                     onDone={() => setReasoningTypingDone(true)}
                     className="text-zinc-500 text-sm leading-relaxed"
                   />

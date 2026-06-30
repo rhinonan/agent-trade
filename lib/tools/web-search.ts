@@ -1,5 +1,15 @@
 import type { ToolDefinition, ToolContext } from "./types.js";
 
+/**
+ * Web 搜索工具 — 联网搜索中文财经信息。
+ *
+ * 调用火山引擎 Web Search API，覆盖雪球/头条/东方财富/微信公众号等中文财经来源。
+ * 用于获取财报数据、机构预期、市场解读、行业动态等时效性信息。
+ *
+ * 注意事项：
+ * - 需要在 .env 中配置 WEB_SEARCH_API_KEY（从火山引擎控制台获取）
+ * - 超时时间 15 秒，超时或系统取消均返回错误信息
+ */
 export const webSearchTool: ToolDefinition = {
   name: "web-search",
   description:
@@ -31,7 +41,7 @@ export const webSearchTool: ToolDefinition = {
     }
 
     try {
-      // Compose ctx.signal with 15s deadline — either one will abort
+      // 组合 ctx.signal 和 15 秒超时信号 — 任一触发即取消请求
       const timeoutSignal = AbortSignal.timeout(15_000);
       const composedSignal = AbortSignal.any([ctx.signal, timeoutSignal]);
 

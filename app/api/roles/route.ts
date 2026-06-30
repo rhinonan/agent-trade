@@ -1,4 +1,12 @@
 // app/api/roles/route.ts
+
+/**
+ * 角色 CRUD 接口 — GET/POST /api/roles
+ *
+ * GET  — 列出当前用户的角色（从 SQLite 查询）
+ * POST — 上传新角色 YAML 文件（校验 → DB 存储 → 运行时加载）
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db/client.js";
 import { RoleRepo } from "@/lib/role-loader/repo.js";
@@ -6,7 +14,7 @@ import { getRoleLoader } from "@/lib/role-loader/loader.js";
 import { AgentYamlSchema, WorkflowYamlSchema } from "@/lib/role-loader/schema.js";
 import { load as parseYaml } from "js-yaml";
 
-// GET /api/roles — list user's roles
+// GET /api/roles — 列出用户角色
 export async function GET(req: NextRequest): Promise<NextResponse> {
   const userId = req.headers.get("x-user-id") ?? "anonymous";
   const type = req.nextUrl.searchParams.get("type") as "agent" | "workflow" | null;
@@ -17,7 +25,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ roles });
 }
 
-// POST /api/roles — upload a YAML role
+// POST /api/roles — 上传 YAML 角色文件
+// 流程：解析 YAML → Zod 校验 → 冲突检测（内置角色不可覆盖）→ DB 存储 → 运行时加载
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const userId = req.headers.get("x-user-id") ?? "anonymous";
   const formData = await req.formData();
@@ -33,7 +42,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   const raw = await file.text();
 
-  // Parse and validate
+  // 解析并校验 YAML
   let parsed: unknown;
   try {
     parsed = parseYaml(raw);
@@ -62,7 +71,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     ? (parsed as any).name
     : (parsed as any).description ?? (parsed as any).name;
 
-  // Check conflict with built-in roles
+  // 检查是否与内建角色冲突（内置角色不可覆盖）
   const loader = getRoleLoader();
   if (loader.hasAgent(id)) {
     return NextResponse.json(
@@ -71,7 +80,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Save to DB
+  // 保存到 DB
   const repo = new RoleRepo(getDb());
   try {
     repo.insert({ id, userId, type, name, yamlContent: raw });
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     throw err;
   }
 
-  // Load into runtime
+  // 加载到运行时 RoleLoader
   if (type === "agent") {
     await loader.loadAgentYaml(raw, `db:${userId}/${id}`);
   }
