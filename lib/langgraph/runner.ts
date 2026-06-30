@@ -217,17 +217,40 @@ export async function runWorkflow(
   const recursionLimit = computeRecursionLimit(workflow);
   log.debug("Computed recursion limit", { workflow: workflow.name, recursionLimit });
 
+  // 构建顶层节点 ID 集合，用于在 streamEvents 中过滤掉子图内部节点
+  // 和 LangChain 内部 chain（如 RunnableSequence、ChatOpenAI 等）
+  const topLevelNodeIds = new Set(workflow.nodes.map((n) => n.id));
+
   const app = compiled.graph.compile();
   log.info("Streaming workflow", { workflow: workflow.name, target });
-  for await (const event of await app.stream(initialState, {
-    streamMode: "updates",
+
+  // 使用 streamEvents (v2) 替代 stream({ streamMode: "updates" })。
+  //
+  // streamMode=updates 只在节点完成后才 yield —— onNodeStart 和 onNodeEnd
+  // 在同一个迭代中连续触发，AGENT_THINKING 刚发出就被 NODE_END 覆盖，
+  // 导致前端"思考中"的跳动动画从未真正显示。
+  //
+  // streamEvents 的 on_chain_start 在节点开始执行前触发，
+  // on_chain_end 在节点完成后触发，两者之间有实际的执行间隔。
+  const stream = app.streamEvents(initialState, {
+    version: "v2",
     recursionLimit,
-  })) {
-    for (const [nodeId, update] of Object.entries(event)) {
+  });
+
+  for await (const event of stream) {
+    const nodeId = event.name;
+    if (!topLevelNodeIds.has(nodeId)) continue; // 跳过子图内部节点和 LangChain 内部 chain
+
+    if (event.event === "on_chain_start") {
       const agentName = agentNameMap.get(nodeId) ?? nodeId;
       log.debug("Node start", { workflow: workflow.name, nodeId, agentName });
       await callbacks.onNodeStart?.(nodeId, agentName);
-      // 将部分状态更新合并到累计状态中
+    }
+
+    if (event.event === "on_chain_end") {
+      const agentName = agentNameMap.get(nodeId) ?? nodeId;
+      const update = event.data.output;
+      // 将节点输出的状态更新合并到累计状态中
       finalState = { ...finalState, ...(update as typeof initialState) };
       await callbacks.onNodeEnd?.(nodeId, update);
       log.debug("Node end", { workflow: workflow.name, nodeId, agentName });
