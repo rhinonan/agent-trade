@@ -3,6 +3,7 @@ import { DataPanel } from "@/components/analysis/DataPanel";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { getDb } from "@/lib/db/client.js";
 import { AnalysisRepo } from "@/lib/db/analysis-repo.js";
+import { EventRepo } from "@/lib/db/event-repo.js";
 import { AnalysisLiveClient } from "./client";
 import { StaticFindingsPanel } from "./static-panel";
 
@@ -12,7 +13,8 @@ export default async function AnalysisPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const repo = new AnalysisRepo(getDb());
+  const db = getDb();
+  const repo = new AnalysisRepo(db);
   const record = repo.getById(id);
 
   if (!record) {
@@ -23,6 +25,20 @@ export default async function AnalysisPage({
 
   const context = JSON.parse(record.context);
   const isRunning = record.status === "running";
+
+  // 如果是 running 状态，从 DB 读取已有事件供客户端回放
+  let initialEvents: Array<{
+    id: number;
+    sessionId: string;
+    seq: number;
+    eventType: string;
+    payload: string;
+    createdAt: number;
+  }> = [];
+  if (isRunning) {
+    const eventRepo = new EventRepo(db);
+    initialEvents = eventRepo.getBySession(id);
+  }
 
   const dataPanelContent = (
     <DataPanel
@@ -46,7 +62,7 @@ export default async function AnalysisPage({
           status={record.status}
         />
         {isRunning ? (
-          <AnalysisLiveClient sessionId={id} />
+          <AnalysisLiveClient sessionId={id} initialEvents={initialEvents} />
         ) : (
           <StaticFindingsPanel
             findings={context.findings ?? []}

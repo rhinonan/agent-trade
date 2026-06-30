@@ -1,11 +1,17 @@
 "use client";
-import { useAnalysisSocket } from "@/hooks/useAnalysisSocket";
+import { useAnalysisSocket, type PersistedEvent } from "@/hooks/useAnalysisSocket";
 import { StepProgress } from "@/components/analysis/StepProgress";
 import { LiveDebatePanel } from "@/components/analysis/LiveDebatePanel";
 
-export function AnalysisLiveClient({ sessionId }: { sessionId: string }) {
+export function AnalysisLiveClient({
+  sessionId,
+  initialEvents,
+}: {
+  sessionId: string;
+  initialEvents?: PersistedEvent[];
+}) {
   const { connected, findings, steps, nodes, agentStreams, status } =
-    useAnalysisSocket(sessionId);
+    useAnalysisSocket(sessionId, initialEvents);
 
   return (
     <div>
