@@ -16,6 +16,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import { WS_EVENTS } from "@/lib/socket/events.js";
 
+/** 从 DB 回放的事件记录（payload 是 JSON 字符串） */
+export interface PersistedEvent {
+  id: number;
+  sessionId: string;
+  seq: number;
+  eventType: string;
+  payload: string; // JSON string — 需要 JSON.parse
+  createdAt: number;
+}
+
 // ——— 数据类型 ———
 
 interface Finding {
@@ -93,7 +103,7 @@ export interface AgentStream {
 
 // ——— Hook ———
 
-export function useAnalysisSocket(sessionId: string) {
+export function useAnalysisSocket(sessionId: string, initialEvents?: PersistedEvent[]) {
   const [connected, setConnected] = useState(false);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [steps, setSteps] = useState<StepState[]>([]);
@@ -107,6 +117,216 @@ export function useAnalysisSocket(sessionId: string) {
     "running",
   );
   const socketRef = useRef<Socket | null>(null);
+
+  const dispatchEvent = useCallback(
+    (eventType: string, rawPayload: unknown) => {
+      const payload = rawPayload as Record<string, any>;
+
+      switch (eventType) {
+        case WS_EVENTS.ANALYSIS_START: {
+          const wfSteps =
+            payload.workflow === "earnings-debate"
+              ? ["research", "debate", "narrator"]
+              : payload.workflow === "quick-scan"
+                ? ["tech", "fundamental", "final"]
+                : [];
+          setSteps(
+            wfSteps.map((id) => ({
+              stepId: id, type: id, agentIds: [], status: "pending" as const,
+            })),
+          );
+          setNodes(
+            wfSteps.map((id) => ({
+              nodeId: id, agentName: id, nodeType: "standard" as const, status: "pending" as const,
+            })),
+          );
+          break;
+        }
+
+        case WS_EVENTS.ANALYSIS_COMPLETE: {
+          setStatus("complete");
+          if (payload.context?.findings) setFindings(payload.context.findings);
+          break;
+        }
+
+        case WS_EVENTS.ANALYSIS_ERROR: {
+          setStatus("error");
+          break;
+        }
+
+        case WS_EVENTS.STEP_START: {
+          setSteps((prev) =>
+            prev.map((s) =>
+              s.stepId === payload.stepId
+                ? { ...s, status: "running" as const, agentIds: payload.agentIds }
+                : s,
+            ),
+          );
+          break;
+        }
+
+        case WS_EVENTS.STEP_COMPLETE: {
+          setSteps((prev) =>
+            prev.map((s) =>
+              s.stepId === payload.stepId ? { ...s, status: "complete" as const } : s,
+            ),
+          );
+          if (payload.findings) {
+            setFindings((prev) => [
+              ...prev,
+              ...payload.findings.map((f: any) => ({
+                step: payload.stepId, agent: f.agent, conclusion: f.conclusion,
+                reasoning: f.reasoning, sentiment: f.sentiment,
+                confidence: f.confidence, timestamp: Date.now(),
+              })),
+            ]);
+          }
+          break;
+        }
+
+        case WS_EVENTS.NODE_START: {
+          setNodes((prev) => {
+            const existing = prev.find((n) => n.nodeId === payload.nodeId);
+            if (existing) {
+              return prev.map((n) =>
+                n.nodeId === payload.nodeId
+                  ? { ...n, agentName: payload.agentName, nodeType: payload.nodeType, status: "running" as const }
+                  : n,
+              );
+            }
+            return [...prev, { nodeId: payload.nodeId, agentName: payload.agentName, nodeType: payload.nodeType, status: "running" as const }];
+          });
+          break;
+        }
+
+        case WS_EVENTS.NODE_END: {
+          setNodes((prev) =>
+            prev.map((n) =>
+              n.nodeId === payload.nodeId ? { ...n, status: "complete" as const } : n,
+            ),
+          );
+          setAgentStreams((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(payload.nodeId);
+            if (existing) {
+              const finding = payload.findings?.[0];
+              next.set(payload.nodeId, {
+                ...existing, status: "done",
+                finding: finding
+                  ? { step: payload.nodeId, agent: finding.agent, conclusion: finding.conclusion,
+                      reasoning: finding.reasoning ? [finding.reasoning] : undefined,
+                      sentiment: finding.sentiment, confidence: finding.confidence, timestamp: Date.now() }
+                  : null,
+              });
+            }
+            return next;
+          });
+          if (payload.findings?.length) {
+            setFindings((prev) => [
+              ...prev,
+              ...payload.findings.map((f: any) => ({
+                step: payload.nodeId, agent: f.agent, conclusion: f.conclusion,
+                reasoning: f.reasoning ? [f.reasoning] : undefined,
+                sentiment: f.sentiment, confidence: f.confidence, timestamp: Date.now(),
+              })),
+            ]);
+          }
+          break;
+        }
+
+        case WS_EVENTS.NODE_ERROR: {
+          setNodes((prev) =>
+            prev.map((n) =>
+              n.nodeId === payload.nodeId ? { ...n, status: "error" as const } : n,
+            ),
+          );
+          break;
+        }
+
+        case WS_EVENTS.DEBATE_ROUND: {
+          setDebateRounds((prev) => [...prev, payload as DebateRoundEvent]);
+          break;
+        }
+
+        case WS_EVENTS.DEBATE_YIELD: {
+          setYields((prev) => [...prev, payload as DebateYieldEvent]);
+          break;
+        }
+
+        case WS_EVENTS.AGENT_THINKING: {
+          setAgentStreams((prev) => {
+            const next = new Map(prev);
+            if (!next.has(payload.nodeId)) {
+              next.set(payload.nodeId, {
+                nodeId: payload.nodeId, agentName: payload.agentName, status: "thinking",
+                toolCalls: [], toolResults: new Map(), conclusion: "", reasoning: "",
+                finding: null, startedAt: Date.now(),
+              });
+            } else {
+              const existing = next.get(payload.nodeId)!;
+              next.set(payload.nodeId, { ...existing, agentName: payload.agentName, status: "thinking" });
+            }
+            return next;
+          });
+          break;
+        }
+
+        case WS_EVENTS.AGENT_TOOL_CALL: {
+          setAgentStreams((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(payload.nodeId);
+            if (existing) {
+              next.set(payload.nodeId, {
+                ...existing, agentName: payload.agentName, status: "calling_tool",
+                toolCalls: [...existing.toolCalls, { tool: payload.tool, args: payload.args, ts: payload.ts }],
+              });
+            }
+            return next;
+          });
+          break;
+        }
+
+        case WS_EVENTS.AGENT_TOOL_RESULT: {
+          setAgentStreams((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(payload.nodeId);
+            if (existing) {
+              const newResults = new Map(existing.toolResults);
+              const isError = payload.result?.startsWith?.("Error:") ?? false;
+              newResults.set(`${payload.tool}-${payload.ts}`, {
+                tool: payload.tool, result: payload.result, ts: payload.ts, isError,
+              });
+              next.set(payload.nodeId, { ...existing, toolResults: newResults });
+            }
+            return next;
+          });
+          break;
+        }
+
+        case WS_EVENTS.AGENT_WRITING: {
+          setAgentStreams((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(payload.nodeId);
+            next.set(payload.nodeId, {
+              nodeId: payload.nodeId,
+              agentName: existing?.agentName ?? payload.agentName,
+              status: "writing",
+              toolCalls: existing?.toolCalls ?? [],
+              toolResults: existing?.toolResults ?? new Map(),
+              conclusion: payload.conclusion,
+              reasoning: payload.reasoning,
+              finding: existing?.finding ?? null,
+              startedAt: existing?.startedAt ?? Date.now(),
+              lastWritingTs: Date.now(),
+            });
+            return next;
+          });
+          break;
+        }
+      }
+    },
+    [], // 无依赖 — 所有 setState 是稳定的
+  );
 
   const connect = useCallback(() => {
     // When running behind the SaaS proxy, the WebSocket server is on the
@@ -125,317 +345,30 @@ export function useAnalysisSocket(sessionId: string) {
 
     // —— Analysis lifecycle ——
 
-    socket.on(WS_EVENTS.ANALYSIS_START, (payload: any) => {
-      const wfSteps =
-        payload.workflow === "earnings-debate"
-          ? ["research", "debate", "narrator"]
-          : payload.workflow === "quick-scan"
-            ? ["tech", "fundamental", "final"]
-            : [];
-      setSteps(
-        wfSteps.map((id) => ({
-          stepId: id,
-          type: id,
-          agentIds: [],
-          status: "pending" as const,
-        })),
-      );
-      // Initialize node list from workflow steps
-      setNodes(
-        wfSteps.map((id) => ({
-          nodeId: id,
-          agentName: id,
-          nodeType: "standard" as const,
-          status: "pending" as const,
-        })),
-      );
-    });
-
-    socket.on(WS_EVENTS.ANALYSIS_COMPLETE, (payload: any) => {
-      setStatus("complete");
-      if (payload.context?.findings) {
-        setFindings(payload.context.findings);
-      }
-    });
-
-    socket.on(WS_EVENTS.ANALYSIS_ERROR, (_payload: any) => setStatus("error"));
+    socket.on(WS_EVENTS.ANALYSIS_START, (payload: any) => dispatchEvent(WS_EVENTS.ANALYSIS_START, payload));
+    socket.on(WS_EVENTS.ANALYSIS_COMPLETE, (payload: any) => dispatchEvent(WS_EVENTS.ANALYSIS_COMPLETE, payload));
+    socket.on(WS_EVENTS.ANALYSIS_ERROR, (payload: any) => dispatchEvent(WS_EVENTS.ANALYSIS_ERROR, payload));
 
     // —— Legacy step-level events (backward compat) ——
 
-    socket.on(WS_EVENTS.STEP_START, (payload: any) => {
-      setSteps((prev) =>
-        prev.map((s) =>
-          s.stepId === payload.stepId
-            ? {
-                ...s,
-                status: "running" as const,
-                agentIds: payload.agentIds,
-              }
-            : s,
-        ),
-      );
-    });
-
-    socket.on(WS_EVENTS.STEP_COMPLETE, (payload: any) => {
-      setSteps((prev) =>
-        prev.map((s) =>
-          s.stepId === payload.stepId
-            ? { ...s, status: "complete" as const }
-            : s,
-        ),
-      );
-      if (payload.findings) {
-        setFindings((prev) => [
-          ...prev,
-          ...payload.findings.map((f: any) => ({
-            step: payload.stepId,
-            agent: f.agent,
-            conclusion: f.conclusion,
-            reasoning: f.reasoning,
-            sentiment: f.sentiment,
-            confidence: f.confidence,
-            timestamp: Date.now(),
-          })),
-        ]);
-      }
-    });
-
+    socket.on(WS_EVENTS.STEP_START, (payload: any) => dispatchEvent(WS_EVENTS.STEP_START, payload));
+    socket.on(WS_EVENTS.STEP_COMPLETE, (payload: any) => dispatchEvent(WS_EVENTS.STEP_COMPLETE, payload));
     socket.on(WS_EVENTS.STEP_ERROR, () => {});
 
     // —— LangGraph node-level events ——
 
-    socket.on(WS_EVENTS.NODE_START, (payload: {
-      nodeId: string;
-      agentName: string;
-      nodeType: string;
-    }) => {
-      // Add or update node in the node list
-      setNodes((prev) => {
-        const existing = prev.find((n) => n.nodeId === payload.nodeId);
-        if (existing) {
-          return prev.map((n) =>
-            n.nodeId === payload.nodeId
-              ? {
-                  ...n,
-                  agentName: payload.agentName,
-                  nodeType: payload.nodeType,
-                  status: "running" as const,
-                }
-              : n,
-          );
-        }
-        return [
-          ...prev,
-          {
-            nodeId: payload.nodeId,
-            agentName: payload.agentName,
-            nodeType: payload.nodeType,
-            status: "running" as const,
-          },
-        ];
-      });
-    });
-
-    socket.on(WS_EVENTS.NODE_END, (payload: {
-      nodeId: string;
-      agentName: string;
-      findings: {
-        agent: string;
-        conclusion: string;
-        sentiment: string;
-        confidence: number;
-        reasoning?: string;
-      }[];
-    }) => {
-      // Mark node as complete
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.nodeId === payload.nodeId
-            ? { ...n, status: "complete" as const }
-            : n,
-        ),
-      );
-      // Mark the agent stream as done and attach finding
-      setAgentStreams((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(payload.nodeId);
-        if (existing) {
-          const finding = payload.findings?.[0];
-          next.set(payload.nodeId, {
-            ...existing,
-            status: "done",
-            finding: finding ? {
-              step: payload.nodeId,
-              agent: finding.agent,
-              conclusion: finding.conclusion,
-              reasoning: finding.reasoning ? [finding.reasoning] : undefined,
-              sentiment: finding.sentiment,
-              confidence: finding.confidence,
-              timestamp: Date.now(),
-            } : null,
-          });
-        }
-        return next;
-      });
-      // Merge findings
-      if (payload.findings && payload.findings.length > 0) {
-        setFindings((prev) => [
-          ...prev,
-          ...payload.findings.map((f) => ({
-            step: payload.nodeId,
-            agent: f.agent,
-            conclusion: f.conclusion,
-            reasoning: f.reasoning ? [f.reasoning] : undefined,
-            sentiment: f.sentiment,
-            confidence: f.confidence,
-            timestamp: Date.now(),
-          })),
-        ]);
-      }
-    });
-
-    socket.on(WS_EVENTS.NODE_ERROR, (payload: {
-      nodeId: string;
-      error: string;
-    }) => {
-      setNodes((prev) =>
-        prev.map((n) =>
-          n.nodeId === payload.nodeId
-            ? { ...n, status: "error" as const }
-            : n,
-        ),
-      );
-    });
-
-    socket.on(WS_EVENTS.DEBATE_ROUND, (payload: {
-      nodeId: string;
-      round: number;
-      participantLabel: string;
-    }) => {
-      setDebateRounds((prev) => [...prev, payload]);
-    });
-
-    socket.on(WS_EVENTS.DEBATE_YIELD, (payload: {
-      nodeId: string;
-      fromAgent: string;
-      toAgent: string;
-      reason: string;
-    }) => {
-      setYields((prev) => [...prev, payload]);
-    });
+    socket.on(WS_EVENTS.NODE_START, (payload: any) => dispatchEvent(WS_EVENTS.NODE_START, payload));
+    socket.on(WS_EVENTS.NODE_END, (payload: any) => dispatchEvent(WS_EVENTS.NODE_END, payload));
+    socket.on(WS_EVENTS.NODE_ERROR, (payload: any) => dispatchEvent(WS_EVENTS.NODE_ERROR, payload));
+    socket.on(WS_EVENTS.DEBATE_ROUND, (payload: any) => dispatchEvent(WS_EVENTS.DEBATE_ROUND, payload));
+    socket.on(WS_EVENTS.DEBATE_YIELD, (payload: any) => dispatchEvent(WS_EVENTS.DEBATE_YIELD, payload));
 
     // —— Agent-level granular events ——
 
-    socket.on(WS_EVENTS.AGENT_THINKING, (payload: {
-      nodeId: string;
-      agentName: string;
-    }) => {
-      setAgentStreams((prev) => {
-        const next = new Map(prev);
-        if (!next.has(payload.nodeId)) {
-          next.set(payload.nodeId, {
-            nodeId: payload.nodeId,
-            agentName: payload.agentName,
-            status: "thinking",
-            toolCalls: [],
-            toolResults: new Map(),
-            conclusion: "",
-            reasoning: "",
-            finding: null,
-            startedAt: Date.now(),
-          });
-        } else {
-          const existing = next.get(payload.nodeId)!;
-          next.set(payload.nodeId, {
-            ...existing,
-            agentName: payload.agentName,
-            status: "thinking",
-          });
-        }
-        return next;
-      });
-    });
-
-    socket.on(WS_EVENTS.AGENT_TOOL_CALL, (payload: {
-      nodeId: string;
-      agentName: string;
-      tool: string;
-      args: Record<string, unknown>;
-      ts: number;
-    }) => {
-      setAgentStreams((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(payload.nodeId);
-        if (existing) {
-          next.set(payload.nodeId, {
-            ...existing,
-            agentName: payload.agentName,
-            status: "calling_tool",
-            toolCalls: [
-              ...existing.toolCalls,
-              { tool: payload.tool, args: payload.args, ts: payload.ts },
-            ],
-          });
-        }
-        return next;
-      });
-    });
-
-    socket.on(WS_EVENTS.AGENT_TOOL_RESULT, (payload: {
-      nodeId: string;
-      agentName: string;
-      tool: string;
-      result: string;
-      ts: number;
-    }) => {
-      setAgentStreams((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(payload.nodeId);
-        if (existing) {
-          const newResults = new Map(existing.toolResults);
-          const isError = payload.result?.startsWith("Error:") ?? false;
-          newResults.set(`${payload.tool}-${payload.ts}`, {
-            tool: payload.tool,
-            result: payload.result,
-            ts: payload.ts,
-            isError,
-          });
-          next.set(payload.nodeId, {
-            ...existing,
-            toolResults: newResults,
-          });
-        }
-        return next;
-      });
-    });
-
-    socket.on(WS_EVENTS.AGENT_WRITING, (payload: {
-      nodeId: string;
-      agentName: string;
-      conclusion: string;
-      reasoning: string;
-    }) => {
-      setAgentStreams((prev) => {
-        const next = new Map(prev);
-        const existing = next.get(payload.nodeId);
-        // Create-or-update: AGENT_WRITING may arrive before AGENT_THINKING
-        // because runner.ts emits onNodeStart only after the stream yields
-        // (post node-completion), while onAgentWriting fires inside the node.
-        next.set(payload.nodeId, {
-          nodeId: payload.nodeId,
-          agentName: existing?.agentName ?? payload.agentName,
-          status: "writing",
-          toolCalls: existing?.toolCalls ?? [],
-          toolResults: existing?.toolResults ?? new Map(),
-          conclusion: payload.conclusion,
-          reasoning: payload.reasoning,
-          finding: existing?.finding ?? null,
-          startedAt: existing?.startedAt ?? Date.now(),
-          lastWritingTs: Date.now(),
-        });
-        return next;
-      });
-    });
+    socket.on(WS_EVENTS.AGENT_THINKING, (payload: any) => dispatchEvent(WS_EVENTS.AGENT_THINKING, payload));
+    socket.on(WS_EVENTS.AGENT_TOOL_CALL, (payload: any) => dispatchEvent(WS_EVENTS.AGENT_TOOL_CALL, payload));
+    socket.on(WS_EVENTS.AGENT_TOOL_RESULT, (payload: any) => dispatchEvent(WS_EVENTS.AGENT_TOOL_RESULT, payload));
+    socket.on(WS_EVENTS.AGENT_WRITING, (payload: any) => dispatchEvent(WS_EVENTS.AGENT_WRITING, payload));
 
     // —— Connection lifecycle ——
 
@@ -444,12 +377,26 @@ export function useAnalysisSocket(sessionId: string) {
   }, [sessionId]);
 
   useEffect(() => {
+    // Phase 1: 回放 DB 中的历史事件（如有）
+    if (initialEvents && initialEvents.length > 0) {
+      for (const event of initialEvents) {
+        try {
+          const payload = JSON.parse(event.payload);
+          dispatchEvent(event.eventType, payload);
+        } catch (e) {
+          console.warn(`[replay] Failed to parse event seq=${event.seq} type=${event.eventType}:`, e);
+        }
+      }
+    }
+
+    // Phase 2: 连接 WebSocket 接收后续增量事件
     connect();
+
     return () => {
       socketRef.current?.disconnect();
       socketRef.current = null;
     };
-  }, [connect]);
+  }, [connect, dispatchEvent, initialEvents]);
 
   return { connected, findings, steps, nodes, debateRounds, yields, status, agentStreams };
 }
