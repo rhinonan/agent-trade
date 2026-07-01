@@ -125,6 +125,16 @@ async function runAnalysis(
   const eventRepo = new EventRepo(db);
   let seq = 0;
 
+  // 单调递增时间戳 — Date.now() 在同毫秒内可能重复，
+  // 前端以 `${tool}-${ts}` 为 ToolCallCard 的 React key，
+  // 重复 key 会触发 "Encountered two children with the same key" 错误
+  let _lastTs = 0;
+  function uniqueTs(): number {
+    const now = Date.now();
+    _lastTs = now > _lastTs ? now : _lastTs + 1;
+    return _lastTs;
+  }
+
   function emitAndPersist(eventType: string, payload: Record<string, unknown>) {
     ns.to(sessionId).emit(eventType, payload);
     try {
@@ -256,7 +266,7 @@ async function runAnalysis(
             agentName,
             tool,
             args,
-            ts: Date.now(),
+            ts: uniqueTs(),
           });
         },
         onToolResult: async (nodeId, agentName, tool, result) => {
@@ -265,7 +275,7 @@ async function runAnalysis(
             agentName,
             tool,
             result,
-            ts: Date.now(),
+            ts: uniqueTs(),
           });
         },
         onAgentWriting: async (nodeId, agentName, conclusion, reasoning) => {
