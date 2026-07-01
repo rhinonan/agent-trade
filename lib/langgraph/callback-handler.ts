@@ -36,13 +36,19 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async handleToolStart(
-    tool: { name?: string },
+    tool: { name?: string; id?: string[]; kwargs?: Record<string, unknown> },
     input: string,
     runId: string,
     _parentRunId?: string,
     _tags?: string[],
   ): Promise<void> {
-    const toolName = tool.name ?? "unknown";
+    // LangChain 的 Serialized 类型将工具名放在 id 数组末位或 kwargs.name，
+    // 而非顶层的 name 属性。优先级：kwargs.name > id[-1] > "unknown"
+    const toolName =
+      (tool.kwargs?.name as string) ??
+      tool.id?.[tool.id.length - 1] ??
+      tool.name ??
+      "unknown";
     this.toolNameByRunId.set(runId, toolName);
 
     // 尝试将参数解析为 JSON，失败则以原始字符串包装
