@@ -18,8 +18,9 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
   name = "agent_stream_callback";
   lc_serializable = false;
 
-  /** runId → toolName 映射，用于 handleToolEnd/handleToolError 时回查工具名 */
-  private toolNameByRunId = new Map<string, string>();
+  /** runId → { toolName, ts } 映射。ts 在 handleToolStart 生成，handleToolEnd/handleToolError 复用，保证同一 tool call 的两次回调使用相同 key */
+  private toolMetaByRunId = new Map<string, { toolName: string; ts: number }>();
+  private _lastTs = 0;
 
   constructor(
     private nodeId: string,
@@ -49,7 +50,14 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
       tool.id?.[tool.id.length - 1] ??
       tool.name ??
       "unknown";
-    this.toolNameByRunId.set(runId, toolName);
+
+    // 单调递增时间戳 — 同一个 tool call 的 onToolCall 和 onToolResult 共享同一个 ts，
+    // 前端以 `${tool}-${ts}` 为 ToolCallCard key 并据此关联 result
+    const now = Date.now();
+    this._lastTs = now > this._lastTs ? now : this._lastTs + 1;
+    const ts = this._lastTs;
+
+    this.toolMetaByRunId.set(runId, { toolName, ts });
 
     // 尝试将参数解析为 JSON，失败则以原始字符串包装
     let args: Record<string, unknown>;
@@ -64,6 +72,7 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
       this.agentName,
       toolName,
       args,
+      ts,
     );
   }
 
@@ -79,8 +88,10 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
     _parentRunId?: string,
     _tags?: string[],
   ): Promise<void> {
-    const toolName = this.toolNameByRunId.get(runId) ?? "unknown";
-    this.toolNameByRunId.delete(runId); // 清理映射，防止内存泄漏
+    const meta = this.toolMetaByRunId.get(runId);
+    this.toolMetaByRunId.delete(runId); // 清理映射，防止内存泄漏
+    const toolName = meta?.toolName ?? "unknown";
+    const ts = meta?.ts ?? Date.now();
 
     const result =
       typeof output === "string" ? output : JSON.stringify(output);
@@ -90,6 +101,7 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
       this.agentName,
       toolName,
       result,
+      ts,
     );
   }
 
@@ -104,14 +116,17 @@ export class AgentStreamCallbackHandler extends BaseCallbackHandler {
     _parentRunId?: string,
     _tags?: string[],
   ): Promise<void> {
-    const toolName = this.toolNameByRunId.get(runId) ?? "unknown";
-    this.toolNameByRunId.delete(runId);
+    const meta = this.toolMetaByRunId.get(runId);
+    this.toolMetaByRunId.delete(runId);
+    const toolName = meta?.toolName ?? "unknown";
+    const ts = meta?.ts ?? Date.now();
 
     await this.callbacks?.onToolResult?.(
       this.nodeId,
       this.agentName,
       toolName,
       `Error: ${err.message}`,
+      ts,
     );
   }
 }

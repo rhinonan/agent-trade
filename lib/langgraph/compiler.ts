@@ -25,10 +25,10 @@ export interface CompiledWorkflow {
 export interface AgentNodeCallbacks {
   /** Agent 开始思考时触发 */
   onAgentThinking?(nodeId: string, agentName: string): Promise<void>;
-  /** Agent 调用工具时触发，args 为解析后的工具参数 */
-  onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
-  /** 工具返回结果时触发，result 为字符串格式的输出 */
-  onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
+  /** Agent 调用工具时触发，args 为解析后的工具参数，ts 为单调递增时间戳（同一个 tool call 的 onToolCall 和 onToolResult 共享同一个 ts） */
+  onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>, ts: number): Promise<void>;
+  /** 工具返回结果时触发，result 为字符串格式的输出，ts 与对应的 onToolCall 相同 */
+  onToolResult?(nodeId: string, agentName: string, tool: string, result: string, ts: number): Promise<void>;
   /** Agent 输出结论和推理过程时触发，供前端打字机效果使用 */
   onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
 }

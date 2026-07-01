@@ -44,10 +44,10 @@ export interface WorkflowRunCallbacks {
   onStreamChunk?(chunk: string): Promise<void>;
   /** Agent 开始思考时触发 */
   onAgentThinking?(nodeId: string, agentName: string): Promise<void>;
-  /** Agent 调用工具时触发 */
-  onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>): Promise<void>;
-  /** 工具返回结果时触发 */
-  onToolResult?(nodeId: string, agentName: string, tool: string, result: string): Promise<void>;
+  /** Agent 调用工具时触发，ts 为本次 tool call 的唯一时间戳（与 onToolResult 共享） */
+  onToolCall?(nodeId: string, agentName: string, tool: string, args: Record<string, unknown>, ts: number): Promise<void>;
+  /** 工具返回结果时触发，ts 与对应的 onToolCall 相同 */
+  onToolResult?(nodeId: string, agentName: string, tool: string, result: string, ts: number): Promise<void>;
   /** Agent 输出结论和推理时触发 */
   onAgentWriting?(nodeId: string, agentName: string, conclusion: string, reasoning: string): Promise<void>;
 }
