@@ -249,9 +249,18 @@ export async function runWorkflow(
 
     if (event.event === "on_chain_end") {
       const agentName = agentNameMap.get(nodeId) ?? nodeId;
-      const update = event.data.output;
-      // 将节点输出的状态更新合并到累计状态中
-      finalState = { ...finalState, ...(update as typeof initialState) };
+      const update = event.data.output as Record<string, unknown>;
+      // 深度合并：findings 需要跨节点累积，不可被浅展开覆盖。
+      // 例如 tech 节点写入 { findings: { tech: {...} } }，judge 节点写入
+      // { findings: { judge: {...} } }，浅合并会丢失前面的 tech 条目。
+      finalState = {
+        ...finalState,
+        ...update,
+        findings: {
+          ...finalState.findings,
+          ...((update as any)?.findings ?? {}),
+        },
+      };
       await callbacks.onNodeEnd?.(nodeId, update);
       log.debug("Node end", { workflow: workflow.name, nodeId, agentName });
     }

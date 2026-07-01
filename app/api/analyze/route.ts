@@ -7,6 +7,7 @@ import { WS_EVENTS } from "@/lib/socket/events.js";
 import type { AnalysisTarget } from "@/lib/engine/types.js";
 import { getDb } from "@/lib/db/client.js";
 import { AnalysisRepo } from "@/lib/db/analysis-repo.js";
+import { SessionRepo } from "@/lib/db/session-repo.js";
 import { EventRepo } from "@/lib/db/event-repo.js";
 import { getQuotaHook, type QuotaHook } from "@/lib/auth/types.js";
 import { runWorkflow, loadWorkflowYaml, ensureAgentsLoaded } from "@/lib/langgraph/runner.js";
@@ -77,6 +78,19 @@ export async function POST(req: NextRequest) {
     userId,
   });
 
+  // 同步写入 sessions 表 — 历史页（RecentAnalyses、/history）通过
+  // /api/sessions 读取此表。两张表共存属于历史遗留，后续可统一为 analyses。
+  new SessionRepo(db).insert({
+    id: sessionId,
+    targetCode: code ?? sector ?? index,
+    targetName: null,
+    targetType: sector ? "sector" : index ? "index" : "stock",
+    workflowName: workflow,
+    status: "RUNNING",
+    createdAt: Date.now(),
+    userId,
+  });
+
   // 异步执行分析（fire-and-forget），失败在 catch 中处理
   const quotaHook = getQuotaHook();
   runAnalysis(
@@ -86,6 +100,7 @@ export async function POST(req: NextRequest) {
   ).catch(async (err) => {
     console.error(`Analysis ${sessionId} failed:`, err);
     repo.update(sessionId, { status: "error", context: JSON.stringify({ error: err.message }) });
+    new SessionRepo(db).updateStatus(sessionId, "STOPPED");
     const io = getSocketIO();
     io.of("/analysis").to(sessionId).emit(WS_EVENTS.ANALYSIS_ERROR, { message: err.message });
     // Persist error event
@@ -289,6 +304,9 @@ async function runAnalysis(
       }),
     });
 
+    // 同步 sessions 表 — 历史页轮询此表
+    new SessionRepo(db).updateStatus(sessionId, "STOPPED");
+
     emitAndPersist(WS_EVENTS.ANALYSIS_COMPLETE, {
       context: {
         target,
@@ -309,6 +327,7 @@ async function runAnalysis(
       );
     }
     repo.update(sessionId, { status: "error", context: JSON.stringify({ error: (err as Error).message }) });
+    new SessionRepo(db).updateStatus(sessionId, "STOPPED");
     emitAndPersist(WS_EVENTS.ANALYSIS_ERROR, { message: (err as Error).message });
   }
 }
