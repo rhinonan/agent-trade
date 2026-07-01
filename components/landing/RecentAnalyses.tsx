@@ -65,7 +65,7 @@ export function RecentAnalyses() {
             <button
               key={s.id}
               type="button"
-              onClick={() => router.push(`/session/${s.id}`)}
+              onClick={() => router.push(`/analyze/${s.id}`)}
               className="w-full text-left bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl px-4 py-3 transition-colors"
             >
               <div className="flex items-center justify-between">
