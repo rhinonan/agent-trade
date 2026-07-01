@@ -1,6 +1,5 @@
 "use client";
 import { useAnalysisSocket, type PersistedEvent } from "@/hooks/useAnalysisSocket";
-import { StepProgress } from "@/components/analysis/StepProgress";
 import { LiveDebatePanel } from "@/components/analysis/LiveDebatePanel";
 
 export function AnalysisLiveClient({
@@ -10,12 +9,11 @@ export function AnalysisLiveClient({
   sessionId: string;
   initialEvents?: PersistedEvent[];
 }) {
-  const { connected, findings, steps, nodes, agentStreams, status } =
+  const { connected, agentStreams, status } =
     useAnalysisSocket(sessionId, initialEvents);
 
   return (
     <div>
-      <StepProgress steps={steps} nodes={nodes} />
       <LiveDebatePanel
         agentStreams={agentStreams}
         isRunning={status === "running"}
