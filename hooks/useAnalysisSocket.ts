@@ -276,6 +276,12 @@ export function useAnalysisSocket(sessionId: string, initialEvents?: PersistedEv
             const next = new Map(prev);
             const existing = next.get(payload.nodeId);
             if (existing) {
+              const key = `${payload.tool}-${payload.ts}`;
+              // 防御性去重：同一事件可能因回放 + WebSocket 竞态或
+              // StrictMode 双重挂载而被 dispatch 多次
+              if (existing.toolCalls.some((tc) => `${tc.tool}-${tc.ts}` === key)) {
+                return prev;
+              }
               next.set(payload.nodeId, {
                 ...existing, agentName: payload.agentName, status: "calling_tool",
                 toolCalls: [...existing.toolCalls, { tool: payload.tool, args: payload.args, ts: payload.ts }],
